@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PopPop.Data.Entities.Enums;
 using PopPop.Services.Interfaces;
@@ -26,17 +26,17 @@ public sealed class OrdersController : Controller
     [HttpGet]
     public async Task<IActionResult> Details(int id, CancellationToken cancellationToken)
     {
-        var model = await _orderService.GetManagementOrderDetailsAsync(id, isAdmin: false, cancellationToken);
+        var model = await _orderService.GetManagementOrderDetailsAsync(id, cancellationToken);
         return model is null ? NotFound() : View(model);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateStatus(int id, OrderStatus nextStatus, CancellationToken cancellationToken)
+    public async Task<IActionResult> UpdateStatus(int id, OrderStatus nextStatus, string? cancelReason, CancellationToken cancellationToken)
     {
         try
         {
-            await _orderService.UpdateOrderStatusAsync(id, nextStatus, isAdmin: false, cancellationToken);
+            await _orderService.UpdateOrderStatusAsync(id, nextStatus, cancelReason, User.Identity?.Name ?? "nhân viên", cancellationToken);
             TempData["SuccessMessage"] = "Đã cập nhật trạng thái đơn hàng.";
         }
         catch (KeyNotFoundException)

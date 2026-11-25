@@ -1,4 +1,6 @@
+﻿@inject PopPop.Services.Interfaces.IHeaderBadgeService HeaderBadgeService
 @{
+    var staffBadges = await HeaderBadgeService.GetStaffBadgesAsync(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty, Context.RequestAborted);
     var title = ViewData["Title"] as string ?? "Vận hành đơn hàng";
 }
 <!DOCTYPE html>
@@ -17,8 +19,8 @@
             <a class="admin-brand" asp-area="Staff" asp-controller="Orders" asp-action="Index">PôpPôp <span>KHU VỰC NHÂN VIÊN</span></a>
             <div class="admin-user"><i class="fa fa-user-circle"></i><div><strong>@(User.Identity?.Name ?? "Tài khoản")</strong><small>Nhân viên cửa hàng</small></div></div>
             <nav class="admin-nav" aria-label="Điều hướng nhân viên">
-                <a asp-area="Staff" asp-controller="Orders" asp-action="Index"><i class="fa fa-shopping-bag"></i>Đơn hàng cần xử lý</a>
-                <a asp-area="Staff" asp-controller="SupportChat" asp-action="Index"><i class="fa fa-comments"></i>Tin nhắn khách hàng</a>
+                <a asp-area="Staff" asp-controller="Orders" asp-action="Index"><i class="fa fa-shopping-bag"></i>Đơn hàng cần xử lý @if (staffBadges.PendingOrderCount > 0) { <span class="admin-nav__count" title="Đơn chờ xác nhận">@staffBadges.PendingOrderCount</span> }</a>
+                <a asp-area="Staff" asp-controller="Claims" asp-action="Index"><i class="fa fa-wrench"></i>Bảo hành &amp; đổi hàng @if (staffBadges.PendingClaimCount > 0) { <span class="admin-nav__count" title="Yêu cầu chờ duyệt">@staffBadges.PendingClaimCount</span> }</a>
                 <a asp-area="" asp-controller="Home" asp-action="Index"><i class="fa fa-external-link"></i>Xem cửa hàng</a>
             </nav>
             <form class="admin-logout" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="/admin/login" method="post">
@@ -26,7 +28,7 @@
             </form>
         </aside>
         <main class="admin-main">
-            <header class="admin-topbar"><div><span class="admin-eyebrow">KHU VỰC NHÂN VIÊN</span><h1>@title</h1></div><span class="admin-topbar-user"><i class="fa fa-user-circle"></i> @(User.Identity?.Name ?? "Tài khoản")</span></header>
+            <header class="admin-topbar"><div><span class="admin-eyebrow">KHU VỰC NHÂN VIÊN</span><h1>@title</h1></div><div class="admin-topbar-actions"><partial name="_StaffNotificationBell" model="staffBadges" /><span class="admin-topbar-user"><i class="fa fa-user-circle"></i> @(User.Identity?.Name ?? "Tài khoản")</span></div></header>
             <section class="admin-content">
                 @if (TempData["SuccessMessage"] is string successMessage)
                 {
@@ -41,6 +43,8 @@
         </main>
     </div>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@10.0.0/dist/browser/signalr.min.js" crossorigin="anonymous"></script>
+    <script src="~/js/notifications.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

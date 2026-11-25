@@ -52,7 +52,8 @@ public sealed class OrderManagementDetailsViewModel
     public DateTime? PaidAt { get; init; }
     public DateTime CreatedAt { get; init; }
     public string CustomerName { get; init; } = string.Empty;
-    public string CustomerEmail { get; init; } = string.Empty;
+    /// <summary>Phone number the customer account signs in with.</summary>
+    public string CustomerAccountPhone { get; init; } = string.Empty;
     public string RecipientName { get; init; } = string.Empty;
     public string RecipientPhone { get; init; } = string.Empty;
     public string ShippingAddress { get; init; } = string.Empty;
