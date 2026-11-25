@@ -25,34 +25,6 @@ public sealed class OrderRepository : Repository<Order, int>, IOrderRepository
             .FirstOrDefaultAsync(order => order.Id == orderId && order.UserId == userId, cancellationToken);
     }
 
-    public async Task<Order?> GetByOrderCodeForPaymentAsync(
-        string orderCode,
-        CancellationToken cancellationToken = default)
-    {
-        return await DbSet
-            .Include(order => order.OrderItems)
-                .ThenInclude(item => item.ProductVariant)
-            .FirstOrDefaultAsync(order => order.OrderCode == orderCode, cancellationToken);
-    }
-
-    public async Task<IReadOnlyList<Order>> GetExpiredVnPayOrdersAsync(
-        DateTime utcNow,
-        int batchSize,
-        CancellationToken cancellationToken = default)
-    {
-        return await DbSet
-            .Where(order => order.PaymentMethod == PaymentMethod.VnPay
-                && order.PaymentStatus == PaymentStatus.Pending
-                && order.Status == OrderStatus.Pending
-                && order.PaymentExpiresAt <= utcNow
-                && order.StockReleasedAt == null)
-            .OrderBy(order => order.PaymentExpiresAt)
-            .Take(batchSize)
-            .Include(order => order.OrderItems)
-                .ThenInclude(item => item.ProductVariant)
-            .ToListAsync(cancellationToken);
-    }
-
     public async Task<IReadOnlyList<Order>> GetForUserAsync(
         string userId,
         CancellationToken cancellationToken = default)
@@ -62,6 +34,19 @@ public sealed class OrderRepository : Repository<Order, int>, IOrderRepository
             .OrderByDescending(order => order.CreatedAt)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<Order?> GetLatestForUserAsync(
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await DbSet.AsNoTracking()
+            .Where(order => order.UserId == userId)
+            .OrderByDescending(order => order.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public Task<bool> OrderCodeExistsAsync(string orderCode, CancellationToken cancellationToken = default) =>
+        DbSet.AnyAsync(order => order.OrderCode == orderCode, cancellationToken);
 
     public async Task<IReadOnlyList<Order>> GetForManagementAsync(
         OrderStatus? status,
@@ -81,7 +66,7 @@ public sealed class OrderRepository : Repository<Order, int>, IOrderRepository
                 || (order.RecipientName != null && order.RecipientName.Contains(term))
                 || (order.RecipientPhone != null && order.RecipientPhone.Contains(term))
                 || (order.User != null && order.User.FullName != null && order.User.FullName.Contains(term))
-                || (order.User != null && order.User.Email != null && order.User.Email.Contains(term)));
+                || (order.User != null && order.User.UserName != null && order.User.UserName.Contains(term)));
         }
 
         return await query
@@ -119,41 +104,5 @@ public sealed class OrderRepository : Repository<Order, int>, IOrderRepository
     public Task<int> CountAllAsync(CancellationToken cancellationToken = default)
     {
         return DbSet.CountAsync(cancellationToken);
-    }
-
-    public async Task<decimal> GetCompletedRevenueAsync(
-        DateTime fromUtc,
-        DateTime toUtc,
-        CancellationToken cancellationToken = default)
-    {
-        return await DbSet
-            .Where(order => order.Status == OrderStatus.Completed
-                && order.UpdatedAt >= fromUtc
-                && order.UpdatedAt < toUtc)
-            .SumAsync(order => (decimal?)order.TotalAmount, cancellationToken) ?? 0m;
-    }
-
-    public async Task<IReadOnlyList<OrderDailySummary>> GetDailySummariesAsync(
-        DateTime fromUtc,
-        DateTime toUtc,
-        CancellationToken cancellationToken = default)
-    {
-        var orders = await DbSet.AsNoTracking()
-            .Where(order => (order.CreatedAt >= fromUtc && order.CreatedAt < toUtc)
-                || (order.Status == OrderStatus.Completed && order.UpdatedAt >= fromUtc && order.UpdatedAt < toUtc))
-            .Select(order => new { order.CreatedAt, order.UpdatedAt, order.Status, order.TotalAmount })
-            .ToListAsync(cancellationToken);
-
-        return Enumerable.Range(0, (toUtc.Date - fromUtc.Date).Days)
-            .Select(day => fromUtc.Date.AddDays(day))
-            .Select(date => new OrderDailySummary
-            {
-                Date = date,
-                OrderCount = orders.Count(order => order.CreatedAt.Date == date),
-                CompletedRevenue = orders
-                    .Where(order => order.Status == OrderStatus.Completed && order.UpdatedAt.Date == date)
-                    .Sum(order => order.TotalAmount)
-            })
-            .ToList();
     }
 }

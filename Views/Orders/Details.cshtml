@@ -26,6 +26,14 @@
 
 <section class="section_gap">
     <div class="container">
+        @if (TempData["OrderSuccess"] is string orderSuccess)
+        {
+            <div class="alert alert-success" role="alert">@orderSuccess</div>
+        }
+        @if (TempData["OrderError"] is string orderError)
+        {
+            <div class="alert alert-danger" role="alert">@orderError</div>
+        }
         <div class="alert @(Model.Status == OrderStatus.Cancelled ? "alert-danger" : "alert-info")" role="status">
             Đơn hàng <strong>@Model.OrderCode</strong> — <strong>@statusText</strong>
         </div>
@@ -36,14 +44,8 @@
                 <p><strong>Trạng thái:</strong> @statusText</p>
                 <p><strong>Ngày đặt:</strong> @Model.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
                 <p><strong>Cập nhật gần nhất:</strong> @Model.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
-                <p><strong>Phương thức thanh toán:</strong> @(Model.PaymentMethod == PaymentMethod.VnPay ? "VNPay" : "COD")</p>
-                <p><strong>Trạng thái thanh toán:</strong> @(Model.PaymentStatus switch
-                    {
-                        PaymentStatus.Pending => "Đang chờ thanh toán",
-                        PaymentStatus.Paid => "Đã thanh toán",
-                        PaymentStatus.Failed => "Thanh toán thất bại",
-                        _ => "Chưa thanh toán"
-                    })</p>
+                <p><strong>Phương thức thanh toán:</strong> Thanh toán khi nhận hàng (COD)</p>
+                <p><strong>Trạng thái thanh toán:</strong> @(Model.PaymentStatus == PaymentStatus.Paid ? "Đã thanh toán" : "Chưa thanh toán")</p>
                 @if (Model.PaidAt.HasValue)
                 {
                     <p><strong>Thanh toán lúc:</strong> @Model.PaidAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
@@ -97,12 +99,6 @@
             </div>
         </div>
 
-        @if (Model.PaymentMethod == PaymentMethod.VnPay && Model.PaymentStatus == PaymentStatus.Failed)
-        {
-            <div class="alert alert-warning mt-3">Thanh toán chưa thành công. Sản phẩm đã được trả lại giỏ hàng để bạn có thể thử đặt hàng lại.</div>
-            <a asp-controller="Orders" asp-action="Checkout" class="primary-btn">Thử thanh toán lại</a>
-        }
-
         <div class="mt-4">
             <h4>Tiến trình đơn hàng</h4>
             @if (Model.Status == OrderStatus.Cancelled)
@@ -132,6 +128,57 @@
             }
             <p class="text-muted mt-2 mb-0">Trạng thái được cập nhật bởi nhân viên cửa hàng.</p>
         </div>
+
+        @if (Model.CanCancel)
+        {
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5 class="card-title">Hủy đơn hàng</h5>
+                    <p class="text-muted mb-3">Bạn có thể tự hủy khi cửa hàng chưa xác nhận đơn. Sau khi xác nhận, vui lòng liên hệ cửa hàng.</p>
+                    <form asp-controller="Orders" asp-action="Cancel" asp-route-id="@Model.Id" method="post"
+                          onsubmit="return confirm('Bạn chắc chắn muốn hủy đơn hàng @Model.OrderCode?');">
+                        <div class="form-group">
+                            <label for="cancel-reason">Lý do hủy (không bắt buộc)</label>
+                            <select id="cancel-reason" name="reason" class="form-control" style="max-width:420px">
+                                <option value="">-- Chọn lý do --</option>
+                                <option>Muốn thay đổi sản phẩm hoặc số lượng</option>
+                                <option>Muốn thay đổi địa chỉ hoặc thông tin nhận hàng</option>
+                                <option>Tìm được giá tốt hơn</option>
+                                <option>Không còn nhu cầu mua</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-outline-danger">Hủy đơn hàng</button>
+                    </form>
+                </div>
+            </div>
+        }
+
+        @if (Model.Status == OrderStatus.Completed || Model.Claims.Count > 0)
+        {
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5 class="card-title">Bảo hành &amp; đổi hàng</h5>
+                    @if (Model.Claims.Count > 0)
+                    {
+                        <ul class="list-unstyled mb-3">
+                            @foreach (var claim in Model.Claims)
+                            {
+                                <li class="mb-1">
+                                    <a asp-controller="Claims" asp-action="Details" asp-route-id="@claim.Id"><strong>@claim.Code</strong></a>
+                                    · @claim.ProductName · @ClaimDisplay.TypeText(claim.Type) ·
+                                    <span class="badge @(claim.Status == ClaimStatus.Completed ? "badge-success" : ClaimDisplay.IsClosed(claim.Status) ? "badge-secondary" : "badge-warning")">@ClaimDisplay.StatusText(claim.Status)</span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    @if (Model.Status == OrderStatus.Completed)
+                    {
+                        <p class="text-muted mb-2">Sản phẩm bị lỗi khi nhận hàng hoặc gặp lỗi thuộc diện bảo hành của hãng? Gửi yêu cầu kèm video minh chứng. Cửa hàng không đổi hàng vì không vừa ý.</p>
+                        <a asp-controller="Claims" asp-action="Create" asp-route-orderId="@Model.Id" class="btn btn-outline-primary">Yêu cầu bảo hành / đổi hàng</a>
+                    }
+                </div>
+            </div>
+        }
 
         <a asp-controller="Orders" asp-action="Index" class="btn btn-outline-primary mt-4">Đơn hàng của tôi</a>
         <a asp-controller="Home" asp-action="Index" class="primary-btn mt-4">Tiếp tục mua sắm</a>

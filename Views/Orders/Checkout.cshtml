@@ -86,29 +86,16 @@
                                     <li><div class="d-flex justify-content-between py-2"><span>Phí giao hàng</span><span>@(Model.ShippingFee == 0 ? "Miễn phí" : $"{Model.ShippingFee:N0} ₫")</span></div></li>
                                     <li><div class="d-flex justify-content-between py-2"><strong>Tổng cộng</strong><strong>@Model.TotalAmount.ToString("N0") ₫</strong></div></li>
                                 </ul>
+                                @if (Model.AmountToFreeShipping > 0)
+                                {
+                                    <p class="text-muted small mb-2">Mua thêm <strong>@Model.AmountToFreeShipping.ToString("N0") ₫</strong> để được miễn phí giao hàng (đơn từ @Model.FreeShippingThreshold.ToString("N0") ₫).</p>
+                                }
 
                                 <div class="payment_item active">
-                                    <label class="d-flex align-items-center gap-2">
-                                        <input asp-for="PaymentMethod" type="radio" value="@PaymentMethod.CashOnDelivery" />
-                                        <strong>Thanh toán khi nhận hàng (COD)</strong>
-                                    </label>
-                                    <p>Bạn thanh toán trực tiếp cho nhân viên giao hàng khi nhận đủ sản phẩm.</p>
+                                    <strong>Thanh toán khi nhận hàng (COD)</strong>
+                                    <p>Bạn thanh toán bằng tiền mặt cho nhân viên giao hàng khi nhận và kiểm tra đủ sản phẩm.</p>
                                 </div>
-                                <div class="payment_item mt-3">
-                                    <label class="d-flex align-items-center gap-2">
-                                        <input asp-for="PaymentMethod" type="radio" value="@PaymentMethod.VnPay" disabled="@(!Model.IsVnPayConfigured)" />
-                                        <strong>Thanh toán trực tuyến qua VNPay</strong>
-                                    </label>
-                                    @if (Model.IsVnPayConfigured)
-                                    {
-                                        <p>Thanh toán an toàn qua cổng VNPay.</p>
-                                    }
-                                    else
-                                    {
-                                        <p class="text-muted">VNPay Sandbox chưa được cấu hình; COD vẫn sử dụng bình thường.</p>
-                                    }
-                                </div>
-                                <button type="submit" class="primary-btn mt-3 w-100">Đặt hàng / thanh toán</button>
+                                <button type="submit" class="primary-btn mt-3 w-100">Đặt hàng</button>
                             }
                             <a asp-controller="Cart" asp-action="Index" class="d-block mt-3">Quay lại giỏ hàng</a>
                         </div>

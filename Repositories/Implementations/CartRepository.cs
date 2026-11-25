@@ -15,6 +15,16 @@ public sealed class CartRepository : Repository<Cart, int>, ICartRepository
     public async Task<Cart?> GetByUserIdAsync(string userId, CancellationToken cancellationToken = default)
     {
         return await DbSet
+            .AsSplitQuery()
+            // Category/Brand are needed to know whether each product is still for sale.
+            .Include(cart => cart.CartItems)
+                .ThenInclude(item => item.ProductVariant)
+                    .ThenInclude(variant => variant!.Product)
+                        .ThenInclude(product => product!.Category)
+            .Include(cart => cart.CartItems)
+                .ThenInclude(item => item.ProductVariant)
+                    .ThenInclude(variant => variant!.Product)
+                        .ThenInclude(product => product!.Brand)
             .Include(cart => cart.CartItems)
                 .ThenInclude(item => item.ProductVariant)
                     .ThenInclude(variant => variant!.Product)

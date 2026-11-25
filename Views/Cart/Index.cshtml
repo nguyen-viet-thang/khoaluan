@@ -1,4 +1,9 @@
 @model PopPop.Models.CartViewModel
+@inject Microsoft.Extensions.Options.IOptions<PopPop.Models.ShippingOptions> ShippingOptions
+@{
+    var shipping = ShippingOptions.Value;
+    var shippingFee = shipping.CalculateFee(Model.TotalAmount);
+}
 
 @{
     ViewData["Title"] = "Giỏ hàng";
@@ -78,6 +83,13 @@
 
             <div class="text-right">
                 <h4>Tổng tiền: @Model.TotalAmount.ToString("N0") ₫</h4>
+                <p class="text-muted mb-2">
+                    Phí giao hàng: @(shippingFee == 0 ? "Miễn phí" : $"{shippingFee:N0} ₫")
+                    @if (shippingFee > 0 && shipping.FreeShippingThreshold > 0)
+                    {
+                        <span>· mua thêm @((shipping.FreeShippingThreshold - Model.TotalAmount).ToString("N0")) ₫ để được miễn phí giao hàng</span>
+                    }
+                </p>
                 @if (Model.CanCheckout)
                 {
                     <a asp-controller="Orders" asp-action="Checkout" class="primary-btn">Tiến hành đặt hàng</a>

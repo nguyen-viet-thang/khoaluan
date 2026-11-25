@@ -1,6 +1,6 @@
+using Microsoft.Extensions.Options;
 using PopPop.Data.Entities;
 using PopPop.Data.Entities.Enums;
-using PopPop.ExternalServices.Pay;
 using PopPop.Models;
 using PopPop.Repositories.Interfaces;
 using PopPop.Services.Interfaces;
@@ -9,36 +9,41 @@ namespace PopPop.Services.Implementations;
 
 public sealed class OrderService : IOrderService
 {
-    private const decimal ShippingFee = 0m;
-
     private readonly ICartRepository _cartRepository;
     private readonly IOrderRepository _orderRepository;
     private readonly IRepository<InventoryTransaction, int> _inventoryTransactionRepository;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IVnPayClient _vnPayClient;
+    private readonly ShippingOptions _shipping;
+    private readonly IReportRepository _reportRepository;
+    private readonly INotificationService _notificationService;
 
     public OrderService(
         ICartRepository cartRepository,
         IOrderRepository orderRepository,
         IRepository<InventoryTransaction, int> inventoryTransactionRepository,
         IUnitOfWork unitOfWork,
-        IVnPayClient vnPayClient)
+        IOptions<ShippingOptions> shippingOptions,
+        IReportRepository reportRepository,
+        INotificationService notificationService)
     {
         _cartRepository = cartRepository;
         _orderRepository = orderRepository;
+        _reportRepository = reportRepository;
+        _notificationService = notificationService;
         _inventoryTransactionRepository = inventoryTransactionRepository;
         _unitOfWork = unitOfWork;
-        _vnPayClient = vnPayClient;
+        _shipping = shippingOptions.Value;
     }
 
-    public bool IsVnPayConfigured => _vnPayClient.IsConfigured;
+    #region Customer
 
-    public async Task<CheckoutOrderResult> PlaceOrderAsync(
+    public ShippingOptions ShippingPolicy => _shipping;
+
+    public decimal CalculateShippingFee(decimal subtotal) => _shipping.CalculateFee(subtotal);
+
+    public async Task<int> PlaceOrderAsync(
         string userId,
         CheckoutViewModel checkout,
-        PaymentMethod paymentMethod,
-        string clientIpAddress,
-        string? callbackBaseUrl,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(userId))
@@ -46,17 +51,7 @@ public sealed class OrderService : IOrderService
             throw new InvalidOperationException("Bạn cần đăng nhập để đặt hàng.");
         }
 
-        if (paymentMethod is not (PaymentMethod.CashOnDelivery or PaymentMethod.VnPay))
-        {
-            throw new InvalidOperationException("Phương thức thanh toán không hợp lệ.");
-        }
-
-        if (paymentMethod == PaymentMethod.VnPay && !_vnPayClient.IsConfigured)
-        {
-            throw new InvalidOperationException("VNPay chưa được cấu hình. Vui lòng chọn COD hoặc cấu hình VNPay Sandbox.");
-        }
-
-        var (order, paymentUrl) = await _unitOfWork.ExecuteInTransactionAsync(async token =>
+        var order = await _unitOfWork.ExecuteInTransactionAsync(async token =>
         {
             var cart = await _cartRepository.GetByUserIdAsync(userId, token);
             if (cart is null || cart.CartItems.Count == 0)
@@ -67,7 +62,7 @@ public sealed class OrderService : IOrderService
             foreach (var cartItem in cart.CartItems)
             {
                 var variant = cartItem.ProductVariant;
-                if (variant is null || !variant.IsActive || variant.Product?.IsActive != true)
+                if (variant is null || !variant.IsActive || variant.Product?.IsOnSale() != true)
                 {
                     throw new InvalidOperationException("Một sản phẩm trong giỏ hiện không còn khả dụng.");
                 }
@@ -79,23 +74,18 @@ public sealed class OrderService : IOrderService
             }
 
             var now = DateTime.UtcNow;
-            var orderCode = $"PP-{now:yyyyMMddHHmmss}-{Guid.NewGuid():N}".ToUpperInvariant();
-            var paymentExpiresAt = paymentMethod == PaymentMethod.VnPay
-                ? now.AddMinutes(_vnPayClient.PaymentTimeoutMinutes)
-                : (DateTime?)null;
+            var orderCode = await ShortCodeGenerator.CreateUniqueAsync("PP", now, _orderRepository.OrderCodeExistsAsync, token);
             var newOrder = new Order
             {
                 UserId = userId,
                 OrderCode = orderCode,
                 Status = OrderStatus.Pending,
-                PaymentMethod = paymentMethod,
-                PaymentStatus = paymentMethod == PaymentMethod.VnPay ? PaymentStatus.Pending : PaymentStatus.Unpaid,
-                PaymentExpiresAt = paymentExpiresAt,
+                PaymentMethod = PaymentMethod.CashOnDelivery,
+                PaymentStatus = PaymentStatus.Unpaid,
                 RecipientName = checkout.RecipientName.Trim(),
-                RecipientPhone = checkout.RecipientPhone.Trim(),
+                RecipientPhone = PhoneNumberFormatter.Normalize(checkout.RecipientPhone),
                 ShippingAddress = checkout.ShippingAddress.Trim(),
                 Note = string.IsNullOrWhiteSpace(checkout.Note) ? null : checkout.Note.Trim(),
-                ShippingFee = ShippingFee,
                 CreatedAt = now,
                 UpdatedAt = now
             };
@@ -104,7 +94,6 @@ public sealed class OrderService : IOrderService
             {
                 var variant = cartItem.ProductVariant!;
                 var product = variant.Product!;
-                var lineTotal = variant.Price * cartItem.Quantity;
 
                 newOrder.OrderItems.Add(new OrderItem
                 {
@@ -113,7 +102,7 @@ public sealed class OrderService : IOrderService
                     SKU = variant.SKU,
                     UnitPrice = variant.Price,
                     Quantity = cartItem.Quantity,
-                    TotalPrice = lineTotal
+                    TotalPrice = variant.Price * cartItem.Quantity
                 });
 
                 variant.StockQuantity -= cartItem.Quantity;
@@ -127,106 +116,22 @@ public sealed class OrderService : IOrderService
                 }, token);
             }
 
-            newOrder.TotalAmount = newOrder.OrderItems.Sum(item => item.TotalPrice) + newOrder.ShippingFee;
-            var paymentUrl = paymentMethod == PaymentMethod.VnPay
-                ? _vnPayClient.CreatePaymentUrl(orderCode, newOrder.TotalAmount, clientIpAddress, callbackBaseUrl ?? string.Empty, now, paymentExpiresAt!.Value)
-                : null;
+            var subtotal = newOrder.OrderItems.Sum(item => item.TotalPrice);
+            newOrder.ShippingFee = _shipping.CalculateFee(subtotal);
+            newOrder.TotalAmount = subtotal + newOrder.ShippingFee;
             cart.CartItems.Clear();
             cart.UpdatedAt = now;
             await _orderRepository.AddAsync(newOrder, token);
-            return (Order: newOrder, PaymentUrl: paymentUrl);
+            return newOrder;
         }, cancellationToken);
 
-        return new CheckoutOrderResult(order.Id, paymentUrl);
-    }
-
-    public async Task<VnPayIpnResponse> ProcessVnPayIpnAsync(
-        IReadOnlyDictionary<string, string> parameters,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_vnPayClient.ValidateSignature(parameters))
-        {
-            return new VnPayIpnResponse("97", "Invalid Checksum");
-        }
-
-        if (!TryGetParameter(parameters, "vnp_TxnRef", out var transactionReference)
-            || !TryGetParameter(parameters, "vnp_Amount", out var amountValue)
-            || !long.TryParse(amountValue, out var amountInMinorUnits)
-            || !TryGetParameter(parameters, "vnp_ResponseCode", out var responseCode)
-            || !TryGetParameter(parameters, "vnp_TransactionStatus", out var transactionStatus))
-        {
-            return new VnPayIpnResponse("99", "Invalid request");
-        }
-
-        var transactionNo = GetParameter(parameters, "vnp_TransactionNo");
-        var bankCode = GetParameter(parameters, "vnp_BankCode");
-        var now = DateTime.UtcNow;
-
-        return await _unitOfWork.ExecuteInTransactionAsync(async token =>
-        {
-            var order = await _orderRepository.GetByOrderCodeForPaymentAsync(transactionReference, token);
-            if (order is null || order.PaymentMethod != PaymentMethod.VnPay)
-            {
-                return new VnPayIpnResponse("01", "Order not found");
-            }
-
-            if (order.PaymentStatus == PaymentStatus.Paid)
-            {
-                return new VnPayIpnResponse("02", "Order already confirmed");
-            }
-
-            if (amountInMinorUnits != checked((long)(order.TotalAmount * 100m)))
-            {
-                return new VnPayIpnResponse("04", "Invalid amount");
-            }
-
-            if (order.Status == OrderStatus.Cancelled
-                || order.StockReleasedAt.HasValue
-                || order.PaymentStatus != PaymentStatus.Pending
-                || order.PaymentExpiresAt <= now)
-            {
-                return new VnPayIpnResponse("02", "Order is no longer payable");
-            }
-
-            order.VnpayTransactionNo = transactionNo;
-            order.VnpayBankCode = bankCode;
-            order.VnpayResponseCode = responseCode;
-            order.UpdatedAt = now;
-
-            if (responseCode == "00" && transactionStatus == "00")
-            {
-                order.PaymentStatus = PaymentStatus.Paid;
-                order.PaidAt = now;
-                order.PaymentExpiresAt = null;
-                return new VnPayIpnResponse("00", "Confirm Success");
-            }
-
-            order.PaymentStatus = PaymentStatus.Failed;
-            order.Status = OrderStatus.Cancelled;
-            await ReleaseReservedStockAsync(order, $"Hoàn kho do VNPay thất bại cho đơn hàng {order.OrderCode}", now, token);
-            await RestoreOrderItemsToCartAsync(order, now, token);
-            return new VnPayIpnResponse("00", "Confirm Success");
-        }, cancellationToken);
-    }
-
-    public async Task ExpirePendingVnPayOrdersAsync(CancellationToken cancellationToken = default)
-    {
-        await _unitOfWork.ExecuteInTransactionAsync(async token =>
-        {
-            var now = DateTime.UtcNow;
-            var expiredOrders = await _orderRepository.GetExpiredVnPayOrdersAsync(now, 100, token);
-            foreach (var order in expiredOrders)
-            {
-                order.PaymentStatus = PaymentStatus.Failed;
-                order.VnpayResponseCode = "EXPIRED";
-                order.Status = OrderStatus.Cancelled;
-                order.UpdatedAt = now;
-                await ReleaseReservedStockAsync(order, $"Hoàn kho do hết hạn thanh toán VNPay cho đơn hàng {order.OrderCode}", now, token);
-                await RestoreOrderItemsToCartAsync(order, now, token);
-            }
-
-            return true;
-        }, cancellationToken);
+        // After commit: tell the back office there is a new order to confirm.
+        await _notificationService.NotifyStaffAsync(
+            $"Đơn hàng mới {order.OrderCode}",
+            $"{order.RecipientName} · {order.OrderItems.Sum(item => item.Quantity)} sản phẩm · {order.TotalAmount:N0} ₫ (COD). Đang chờ xác nhận.",
+            $"/Staff/Orders/Details/{order.Id}",
+            cancellationToken);
+        return order.Id;
     }
 
     public async Task<OrderDetailsViewModel?> GetDetailsForUserAsync(
@@ -242,7 +147,9 @@ public sealed class OrderService : IOrderService
 
         return new OrderDetailsViewModel
         {
+            Id = order.Id,
             OrderCode = order.OrderCode,
+            CanCancel = CanCustomerCancel(order),
             Status = order.Status,
             PaymentMethod = order.PaymentMethod,
             PaymentStatus = order.PaymentStatus,
@@ -253,17 +160,66 @@ public sealed class OrderService : IOrderService
             RecipientPhone = order.RecipientPhone ?? string.Empty,
             ShippingAddress = order.ShippingAddress ?? string.Empty,
             Note = order.Note,
-            Items = order.OrderItems.Select(item => new OrderLineViewModel
-            {
-                ProductName = item.ProductName,
-                SKU = item.SKU,
-                UnitPrice = item.UnitPrice,
-                Quantity = item.Quantity,
-                LineTotal = item.TotalPrice
-            }).ToList(),
+            Items = order.OrderItems.Select(ToLine).ToList(),
             ShippingFee = order.ShippingFee,
             TotalAmount = order.TotalAmount
         };
+    }
+
+    public async Task<bool> PrefillCheckoutFromLastOrderAsync(
+        string userId,
+        CheckoutViewModel checkout,
+        CancellationToken cancellationToken = default)
+    {
+        var lastOrder = await _orderRepository.GetLatestForUserAsync(userId, cancellationToken);
+        if (lastOrder is null)
+        {
+            return false;
+        }
+
+        checkout.RecipientName = lastOrder.RecipientName ?? string.Empty;
+        checkout.RecipientPhone = lastOrder.RecipientPhone ?? string.Empty;
+        checkout.ShippingAddress = lastOrder.ShippingAddress ?? string.Empty;
+        return true;
+    }
+
+    public async Task CancelByCustomerAsync(
+        int orderId,
+        string userId,
+        string? reason,
+        CancellationToken cancellationToken = default)
+    {
+        var cancelled = await _unitOfWork.ExecuteInTransactionAsync(async token =>
+        {
+            var order = await _orderRepository.GetDetailsForManagementAsync(orderId, token);
+            if (order is null || order.UserId != userId)
+            {
+                throw new KeyNotFoundException("Không tìm thấy đơn hàng.");
+            }
+
+            if (!CanCustomerCancel(order))
+            {
+                throw new InvalidOperationException(order.Status == OrderStatus.Cancelled
+                    ? "Đơn hàng đã được hủy trước đó."
+                    : "Đơn hàng đã được cửa hàng xác nhận nên không thể tự hủy. Vui lòng liên hệ cửa hàng để được hỗ trợ.");
+            }
+
+            var now = DateTime.UtcNow;
+            await ReleaseReservedStockAsync(order, $"Hoàn kho do khách hủy đơn hàng {order.OrderCode}", now, token);
+            AppendNote(order, string.IsNullOrWhiteSpace(reason)
+                ? "Khách hàng đã hủy đơn."
+                : $"Khách hàng đã hủy đơn. Lý do: {reason.Trim()}");
+            order.Status = OrderStatus.Cancelled;
+            order.UpdatedAt = now;
+            return order;
+        }, cancellationToken);
+
+        await _notificationService.NotifyStaffAsync(
+            $"Khách đã hủy đơn {cancelled.OrderCode}",
+            (string.IsNullOrWhiteSpace(reason) ? "Khách không ghi lý do." : $"Lý do: {reason.Trim()}.")
+                + " Tồn kho đã được hoàn lại; không cần chuẩn bị hàng cho đơn này.",
+            $"/Staff/Orders/Details/{cancelled.Id}",
+            cancellationToken);
     }
 
     public async Task<CustomerOrdersViewModel> GetOrdersForUserAsync(
@@ -278,8 +234,8 @@ public sealed class OrderService : IOrderService
                 Id = order.Id,
                 OrderCode = order.OrderCode,
                 Status = order.Status,
-            PaymentMethod = order.PaymentMethod,
-            PaymentStatus = order.PaymentStatus,
+                PaymentMethod = order.PaymentMethod,
+                PaymentStatus = order.PaymentStatus,
                 StatusText = GetStatusText(order.Status),
                 CreatedAt = order.CreatedAt,
                 UpdatedAt = order.UpdatedAt,
@@ -288,18 +244,31 @@ public sealed class OrderService : IOrderService
         };
     }
 
+    #endregion
+
+    #region Management (Admin & Staff)
+
     public async Task<AdminDashboardViewModel> GetAdminDashboardAsync(CancellationToken cancellationToken = default)
     {
         var recentOrders = await _orderRepository.GetRecentForManagementAsync(8, cancellationToken);
-        var todayUtc = DateTime.UtcNow.Date;
-        var monthStartUtc = new DateTime(todayUtc.Year, todayUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-        var chartStartUtc = todayUtc.AddDays(-6);
-        var dailySummaries = await _orderRepository.GetDailySummariesAsync(
-            chartStartUtc,
-            todayUtc.AddDays(1),
-            cancellationToken);
-        var summariesByDate = dailySummaries.ToDictionary(summary => summary.Date.Date);
-        var chartDates = Enumerable.Range(0, 7).Select(day => chartStartUtc.AddDays(day)).ToList();
+
+        // Days and months are Vietnam local time (same rules as the Reports page):
+        // orders count on the day they were placed, revenue on the day they were delivered (PaidAt).
+        var today = ShopClock.Today;
+        var monthStart = new DateOnly(today.Year, today.Month, 1);
+        var chartStart = today.AddDays(-6);
+        var chartFromUtc = ShopClock.StartOfDayUtc(chartStart);
+        var chartToUtc = ShopClock.StartOfDayUtc(today.AddDays(1));
+        var chartOrders = await _reportRepository.GetOrdersAsync(chartFromUtc, chartToUtc, cancellationToken);
+        var placedByDay = chartOrders
+            .Where(order => order.CreatedAt >= chartFromUtc && order.CreatedAt < chartToUtc)
+            .GroupBy(order => DateOnly.FromDateTime(ShopClock.ToLocal(order.CreatedAt)))
+            .ToDictionary(group => group.Key, group => group.Count());
+        var revenueByDay = chartOrders
+            .Where(order => order.CompletedAt >= chartFromUtc && order.CompletedAt < chartToUtc)
+            .GroupBy(order => DateOnly.FromDateTime(ShopClock.ToLocal(order.CompletedAt!.Value)))
+            .ToDictionary(group => group.Key, group => group.Sum(order => order.TotalAmount));
+        var chartDates = Enumerable.Range(0, 7).Select(day => chartStart.AddDays(day)).ToList();
         var pendingOrders = await _orderRepository.CountByStatusAsync(OrderStatus.Pending, cancellationToken);
         var confirmedOrders = await _orderRepository.CountByStatusAsync(OrderStatus.Confirmed, cancellationToken);
         var processingOrders = await _orderRepository.CountByStatusAsync(OrderStatus.Processing, cancellationToken);
@@ -316,13 +285,13 @@ public sealed class OrderService : IOrderService
             ShippingOrders = shippingOrders,
             CompletedOrders = completedOrders,
             CancelledOrders = cancelledOrders,
-            MonthlyRevenue = await _orderRepository.GetCompletedRevenueAsync(
-                monthStartUtc,
-                monthStartUtc.AddMonths(1),
+            MonthlyRevenue = await _reportRepository.GetCompletedRevenueAsync(
+                ShopClock.StartOfDayUtc(monthStart),
+                ShopClock.StartOfDayUtc(monthStart.AddMonths(1)),
                 cancellationToken),
-            DailyChartLabels = chartDates.Select(date => date.ToString("dd/MM")).ToList(),
-            DailyOrderCounts = chartDates.Select(date => summariesByDate.GetValueOrDefault(date)?.OrderCount ?? 0).ToList(),
-            DailyCompletedRevenue = chartDates.Select(date => summariesByDate.GetValueOrDefault(date)?.CompletedRevenue ?? 0m).ToList(),
+            DailyChartLabels = chartDates.Select(date => date.ToString("dd/MM", System.Globalization.CultureInfo.InvariantCulture)).ToList(),
+            DailyOrderCounts = chartDates.Select(date => placedByDay.GetValueOrDefault(date)).ToList(),
+            DailyCompletedRevenue = chartDates.Select(date => revenueByDay.GetValueOrDefault(date)).ToList(),
             StatusChartValues = [pendingOrders, confirmedOrders, processingOrders, shippingOrders, completedOrders, cancelledOrders],
             RecentOrders = recentOrders.Select(ToManagementRow).ToList()
         };
@@ -344,7 +313,6 @@ public sealed class OrderService : IOrderService
 
     public async Task<OrderManagementDetailsViewModel?> GetManagementOrderDetailsAsync(
         int orderId,
-        bool isAdmin,
         CancellationToken cancellationToken = default)
     {
         var order = await _orderRepository.GetDetailsForManagementAsync(orderId, cancellationToken);
@@ -363,91 +331,80 @@ public sealed class OrderService : IOrderService
             PaymentStatus = order.PaymentStatus,
             PaidAt = order.PaidAt,
             CreatedAt = order.CreatedAt,
-            CustomerName = order.User?.FullName ?? order.User?.Email ?? "Khách hàng",
-            CustomerEmail = order.User?.Email ?? string.Empty,
+            CustomerName = order.User?.FullName ?? order.User?.UserName ?? "Khách hàng",
+            CustomerAccountPhone = order.User?.PhoneNumber ?? order.User?.UserName ?? string.Empty,
             RecipientName = order.RecipientName ?? string.Empty,
             RecipientPhone = order.RecipientPhone ?? string.Empty,
             ShippingAddress = order.ShippingAddress ?? string.Empty,
             Note = order.Note,
             ShippingFee = order.ShippingFee,
             TotalAmount = order.TotalAmount,
-            Items = order.OrderItems.Select(item => new OrderLineViewModel
-            {
-                ProductName = item.ProductName,
-                SKU = item.SKU,
-                UnitPrice = item.UnitPrice,
-                Quantity = item.Quantity,
-                LineTotal = item.TotalPrice
-            }).ToList(),
-            AvailableStatuses = GetAvailableStatuses(order, isAdmin)
+            Items = order.OrderItems.Select(ToLine).ToList(),
+            AvailableStatuses = GetAvailableStatuses(order.Status)
         };
     }
 
+    /// <summary>
+    /// Moves an order one step forward in the fulfilment flow, or cancels it.
+    /// Admin and staff have the same rights: an order can be cancelled until it is handed to the courier.
+    /// </summary>
     public async Task UpdateOrderStatusAsync(
         int orderId,
         OrderStatus nextStatus,
-        bool isAdmin,
+        string? cancelReason,
+        string actorName,
         CancellationToken cancellationToken = default)
     {
         var updated = await _unitOfWork.ExecuteInTransactionAsync(async token =>
         {
-            var order = await _orderRepository.GetDetailsForManagementAsync(orderId, token);
-            if (order is null)
-            {
-                return false;
-            }
+            var order = await _orderRepository.GetDetailsForManagementAsync(orderId, token)
+                ?? throw new KeyNotFoundException("Không tìm thấy đơn hàng.");
 
-            if (!IsTransitionAllowed(order.Status, nextStatus, isAdmin))
+            if (!GetAvailableStatuses(order.Status).Contains(nextStatus))
             {
                 throw new InvalidOperationException("Không thể chuyển đơn hàng sang trạng thái đã chọn.");
             }
 
-            if (nextStatus == OrderStatus.Confirmed
-                && order.PaymentMethod == PaymentMethod.VnPay
-                && order.PaymentStatus != PaymentStatus.Paid)
-            {
-                throw new InvalidOperationException("Chỉ được xác nhận đơn VNPay sau khi hệ thống xác nhận thanh toán thành công.");
-            }
-
-            if (nextStatus == OrderStatus.Cancelled
-                && order.PaymentMethod == PaymentMethod.VnPay
-                && order.PaymentStatus == PaymentStatus.Paid)
-            {
-                throw new InvalidOperationException("Đơn VNPay đã thanh toán cần được hoàn tiền trên cổng VNPay trước khi hủy.");
-            }
-
-            if (nextStatus == OrderStatus.Cancelled
-                && order.PaymentMethod == PaymentMethod.VnPay
-                && order.PaymentStatus == PaymentStatus.Pending)
-            {
-                throw new InvalidOperationException("Không thể hủy đơn khi VNPay đang xử lý thanh toán. Đơn sẽ tự hết hạn nếu giao dịch không hoàn tất.");
-            }
-
+            var now = DateTime.UtcNow;
             if (nextStatus == OrderStatus.Cancelled)
             {
-                var now = DateTime.UtcNow;
-                if (order.StockReleasedAt is null)
-                {
-                    await ReleaseReservedStockAsync(order, $"Hoàn kho do hủy đơn hàng {order.OrderCode}", now, token);
-                }
+                await ReleaseReservedStockAsync(order, $"Hoàn kho do hủy đơn hàng {order.OrderCode}", now, token);
+                AppendNote(order, string.IsNullOrWhiteSpace(cancelReason)
+                    ? $"Cửa hàng đã hủy đơn ({actorName})."
+                    : $"Cửa hàng đã hủy đơn ({actorName}). Lý do: {cancelReason.Trim()}");
+            }
 
-                if (order.PaymentMethod == PaymentMethod.VnPay && order.PaymentStatus == PaymentStatus.Pending)
-                {
-                    order.PaymentStatus = PaymentStatus.Failed;
-                    order.VnpayResponseCode = "CANCELLED";
-                }
+            // COD: the courier collects the money on delivery, so a delivered order is a paid order.
+            if (nextStatus == OrderStatus.Completed && order.PaymentStatus != PaymentStatus.Paid)
+            {
+                order.PaymentStatus = PaymentStatus.Paid;
+                order.PaidAt = now;
             }
 
             order.Status = nextStatus;
-            order.UpdatedAt = DateTime.UtcNow;
-            return true;
+            order.UpdatedAt = now;
+            return order;
         }, cancellationToken);
 
-        if (!updated)
-        {
-            throw new KeyNotFoundException("Không tìm thấy đơn hàng.");
-        }
+        // After commit: tell the customer (in-site, real time).
+        await _notificationService.NotifyOrderStatusChangedAsync(
+            updated.Id, updated.OrderCode, updated.UserId, updated.Status, updated.TotalAmount,
+            nextStatus == OrderStatus.Cancelled ? cancelReason : null,
+            cancellationToken);
     }
+
+    #endregion
+
+    #region Helpers
+
+    private static OrderLineViewModel ToLine(OrderItem item) => new()
+    {
+        ProductName = item.ProductName,
+        SKU = item.SKU,
+        UnitPrice = item.UnitPrice,
+        Quantity = item.Quantity,
+        LineTotal = item.TotalPrice
+    };
 
     private static OrderManagementRowViewModel ToManagementRow(Order order)
     {
@@ -455,7 +412,7 @@ public sealed class OrderService : IOrderService
         {
             Id = order.Id,
             OrderCode = order.OrderCode,
-            CustomerName = order.RecipientName ?? order.User?.FullName ?? order.User?.Email ?? "Khách hàng",
+            CustomerName = order.RecipientName ?? order.User?.FullName ?? order.User?.UserName ?? "Khách hàng",
             CustomerPhone = order.RecipientPhone ?? string.Empty,
             CreatedAt = order.CreatedAt,
             Status = order.Status,
@@ -480,52 +437,25 @@ public sealed class OrderService : IOrderService
         };
     }
 
-    private static IReadOnlyList<OrderStatus> GetAvailableStatuses(Order order, bool isAdmin)
+    /// <summary>
+    /// Next step of the fulfilment flow, plus cancellation while the order has not left the shop.
+    /// </summary>
+    private static IReadOnlyList<OrderStatus> GetAvailableStatuses(OrderStatus current) => current switch
     {
-        var statuses = order.Status switch
-        {
-            OrderStatus.Pending => new List<OrderStatus> { OrderStatus.Confirmed },
-            OrderStatus.Confirmed => new List<OrderStatus> { OrderStatus.Processing },
-            OrderStatus.Processing => new List<OrderStatus> { OrderStatus.Shipping },
-            OrderStatus.Shipping => new List<OrderStatus> { OrderStatus.Completed },
-            _ => []
-        };
+        OrderStatus.Pending => [OrderStatus.Confirmed, OrderStatus.Cancelled],
+        OrderStatus.Confirmed => [OrderStatus.Processing, OrderStatus.Cancelled],
+        OrderStatus.Processing => [OrderStatus.Shipping, OrderStatus.Cancelled],
+        OrderStatus.Shipping => [OrderStatus.Completed],
+        _ => []
+    };
 
-        if (order.PaymentMethod == PaymentMethod.VnPay && order.PaymentStatus != PaymentStatus.Paid)
-        {
-            statuses.Remove(OrderStatus.Confirmed);
-        }
+    /// <summary>A customer may cancel only an order the shop has not confirmed yet.</summary>
+    private static bool CanCustomerCancel(Order order) => order.Status == OrderStatus.Pending;
 
-        if (order.PaymentMethod == PaymentMethod.VnPay && order.PaymentStatus == PaymentStatus.Paid)
-        {
-            statuses.Remove(OrderStatus.Cancelled);
-        }
-
-        if (isAdmin
-            && order.Status is OrderStatus.Pending or OrderStatus.Confirmed or OrderStatus.Processing
-            && !(order.PaymentMethod == PaymentMethod.VnPay
-                && order.PaymentStatus is (PaymentStatus.Pending or PaymentStatus.Paid)))
-        {
-            if (!statuses.Contains(OrderStatus.Cancelled))
-            {
-                statuses.Add(OrderStatus.Cancelled);
-            }
-        }
-
-        return statuses;
-    }
-
-    private static bool IsTransitionAllowed(OrderStatus currentStatus, OrderStatus nextStatus, bool isAdmin)
+    private static void AppendNote(Order order, string line)
     {
-        return (currentStatus, nextStatus) switch
-        {
-            (OrderStatus.Pending, OrderStatus.Confirmed) => true,
-            (OrderStatus.Confirmed, OrderStatus.Processing) => true,
-            (OrderStatus.Processing, OrderStatus.Shipping) => true,
-            (OrderStatus.Shipping, OrderStatus.Completed) => true,
-            (OrderStatus.Pending or OrderStatus.Confirmed or OrderStatus.Processing, OrderStatus.Cancelled) => isAdmin,
-            _ => false
-        };
+        var note = string.IsNullOrWhiteSpace(order.Note) ? line : $"{order.Note}\n{line}";
+        order.Note = note.Length > 1000 ? note[..1000] : note;
     }
 
     private async Task ReleaseReservedStockAsync(
@@ -534,6 +464,7 @@ public sealed class OrderService : IOrderService
         DateTime now,
         CancellationToken cancellationToken)
     {
+        // StockReleasedAt makes the restock idempotent: an order never returns its items to stock twice.
         if (order.StockReleasedAt.HasValue)
         {
             return;
@@ -557,48 +488,5 @@ public sealed class OrderService : IOrderService
         order.StockReleasedAt = now;
     }
 
-    private async Task RestoreOrderItemsToCartAsync(
-        Order order,
-        DateTime now,
-        CancellationToken cancellationToken)
-    {
-        var cart = await _cartRepository.GetByUserIdAsync(order.UserId, cancellationToken);
-        if (cart is null)
-        {
-            return;
-        }
-
-        foreach (var item in order.OrderItems)
-        {
-            var cartItem = cart.CartItems.FirstOrDefault(existing => existing.ProductVariantId == item.ProductVariantId);
-            if (cartItem is null)
-            {
-                cart.CartItems.Add(new CartItem
-                {
-                    ProductVariantId = item.ProductVariantId,
-                    Quantity = item.Quantity,
-                    UnitPrice = item.UnitPrice
-                });
-            }
-            else
-            {
-                cartItem.Quantity += item.Quantity;
-            }
-        }
-
-        cart.UpdatedAt = now;
-    }
-
-    private static bool TryGetParameter(
-        IReadOnlyDictionary<string, string> parameters,
-        string key,
-        out string value)
-    {
-        return parameters.TryGetValue(key, out value!) && !string.IsNullOrWhiteSpace(value);
-    }
-
-    private static string? GetParameter(IReadOnlyDictionary<string, string> parameters, string key)
-    {
-        return parameters.TryGetValue(key, out var value) ? value : null;
-    }
+    #endregion
 }

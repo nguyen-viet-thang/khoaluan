@@ -144,7 +144,7 @@ public sealed class CartService : ICartService
             {
                 var variant = item.ProductVariant;
                 var product = variant?.Product;
-                var isAvailable = variant is { IsActive: true, StockQuantity: > 0 } && product?.IsActive == true;
+                var isAvailable = variant is { IsActive: true, StockQuantity: > 0 } && product?.IsOnSale() == true;
 
                 return new CartLineViewModel
                 {
