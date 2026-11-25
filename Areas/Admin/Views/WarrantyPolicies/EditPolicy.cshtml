@@ -1,0 +1,37 @@
+@model PopPop.Models.WarrantyPolicyFormViewModel
+@{
+    ViewData["Title"] = "Sửa chính sách bảo hành";
+}
+<div class="admin-page-heading">
+    <div><h2>Bảo hành: @Model.BrandName · @Model.CategoryName</h2><p>Thời hạn tính từ ngày giao hàng thành công. Đặt 0 nếu hãng không bảo hành nhóm sản phẩm này.</p></div>
+    <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="WarrantyPolicies" asp-action="Index"><i class="fa fa-arrow-left me-1"></i>Quay lại</a>
+</div>
+<div class="admin-detail-card" style="max-width:720px">
+    <form asp-area="Admin" asp-controller="WarrantyPolicies" asp-action="EditPolicy" method="post">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+        <input type="hidden" asp-for="BrandId" />
+        <input type="hidden" asp-for="CategoryId" />
+        <div class="mb-3">
+            <label asp-for="WarrantyDays" class="form-label"></label>
+            <input asp-for="WarrantyDays" type="number" min="0" max="3650" class="form-control" style="max-width:160px" />
+            <span asp-validation-for="WarrantyDays" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="CoveredParts" class="form-label"></label>
+            <input asp-for="CoveredParts" class="form-control" maxlength="256" placeholder="VD: Khung, thân, cán vợt" />
+        </div>
+        <div class="mb-3">
+            <label asp-for="Notes" class="form-label"></label>
+            <textarea asp-for="Notes" class="form-control" rows="3" maxlength="500" placeholder="VD: Theo phiếu bảo hành của nhà phân phối ..."></textarea>
+        </div>
+        <div class="mb-3">
+            <label asp-for="SourceUrl" class="form-label"></label>
+            <input asp-for="SourceUrl" class="form-control" maxlength="500" placeholder="https://..." />
+            <span asp-validation-for="SourceUrl" class="text-danger"></span>
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fa fa-save me-2"></i>Lưu</button>
+    </form>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

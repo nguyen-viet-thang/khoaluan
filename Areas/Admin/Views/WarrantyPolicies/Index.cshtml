@@ -1,0 +1,74 @@
+@model PopPop.Models.WarrantyPolicyMatrixViewModel
+@using PopPop.Data.Entities.Enums
+@using PopPop.Models
+@{
+    ViewData["Title"] = "Chính sách bảo hành";
+}
+<div class="admin-page-heading">
+    <div><h2>Chính sách bảo hành &amp; đổi hàng</h2><p>Cửa hàng không đổi hàng vì không vừa ý. Chỉ tiếp nhận lỗi khi nhận hàng (theo thời hạn của từng hãng) và lỗi được bảo hành theo chính sách của hãng.</p></div>
+</div>
+
+<div class="admin-panel mb-4">
+    <div class="admin-panel-header"><h3>Thời hạn báo lỗi khi nhận hàng (theo hãng)</h3><span class="admin-stat-note">Tính từ ngày giao thành công</span></div>
+    <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Thương hiệu</th><th>Số ngày</th><th></th></tr></thead><tbody>
+    @foreach (var brand in Model.Brands)
+    {
+        <tr>
+            <td><strong>@brand.Name</strong></td>
+            <td colspan="2">
+                <form asp-area="Admin" asp-controller="WarrantyPolicies" asp-action="UpdateReceiptDays" method="post" class="admin-actions">
+                    <input type="hidden" name="brandId" value="@brand.Id" />
+                    <input type="number" name="days" value="@brand.ReceiptDefectDays" min="0" max="60" class="form-control" style="max-width:110px" aria-label="Số ngày báo lỗi của @brand.Name" />
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Lưu</button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody></table></div>
+</div>
+
+<div class="admin-panel mb-4">
+    <div class="admin-panel-header"><h3>Thời hạn bảo hành của hãng (ngày)</h3><span class="admin-stat-note">0 = không bảo hành · bấm vào ô để sửa · số trong ngoặc là số sản phẩm</span></div>
+    <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Danh mục</th>
+        @foreach (var brand in Model.Brands) { <th>@brand.Name</th> }
+    </tr></thead><tbody>
+    @foreach (var category in Model.Categories)
+    {
+        <tr>
+            <td><strong>@category.Name</strong></td>
+            @foreach (var brand in Model.Brands)
+            {
+                var cell = Model.Cell(brand.Id, category.Id);
+                <td title="@cell?.Notes">
+                    <a class="admin-link" asp-area="Admin" asp-controller="WarrantyPolicies" asp-action="EditPolicy" asp-route-brandId="@brand.Id" asp-route-categoryId="@category.Id">
+                        @(cell is null || cell.WarrantyDays == 0 ? "—" : cell.WarrantyDays.ToString())
+                    </a>
+                    <span class="admin-stat-note">(@(cell?.ProductCount ?? 0))</span>
+                    @if (cell?.Notes?.Contains("Cần xác nhận", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        <span class="admin-status status-pending" title="@cell.Notes">cần xác nhận</span>
+                    }
+                </td>
+            }
+        </tr>
+    }
+    </tbody></table></div>
+</div>
+
+<div class="admin-panel" id="defects">
+    <div class="admin-panel-header"><h3>Danh mục loại lỗi (@Model.Defects.Count)</h3><span class="admin-stat-note">Khách chọn loại lỗi khi gửi yêu cầu; lỗi "Không được chấp nhận" hiển thị để giải thích và không gửi được.</span></div>
+    <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Mã</th><th>Danh mục</th><th>Tên lỗi</th><th>Diện áp dụng</th><th>Căn cứ</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+    @foreach (var defect in Model.Defects)
+    {
+        <tr>
+            <td><strong>@defect.Code</strong></td>
+            <td>@defect.CategoryName</td>
+            <td class="admin-wrap">@defect.Name</td>
+            <td><span class="admin-status @(defect.Coverage == DefectCoverage.Warranty ? "status-confirmed" : defect.Coverage == DefectCoverage.ReceiptDefect ? "status-shipping" : "status-cancelled")">@ClaimDisplay.CoverageText(defect.Coverage)</span></td>
+            <td class="admin-wrap admin-stat-note">@defect.Source</td>
+            <td>@(defect.IsActive ? "Đang dùng" : "Ẩn")</td>
+            <td><a class="btn btn-sm btn-outline-primary" asp-area="Admin" asp-controller="WarrantyPolicies" asp-action="EditDefect" asp-route-id="@defect.Id">Sửa</a></td>
+        </tr>
+    }
+    </tbody></table></div>
+</div>

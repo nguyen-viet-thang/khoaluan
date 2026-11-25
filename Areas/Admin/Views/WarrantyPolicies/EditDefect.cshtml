@@ -1,0 +1,56 @@
+@model PopPop.Models.DefectTypeFormViewModel
+@using PopPop.Data.Entities.Enums
+@using PopPop.Models
+@{
+    ViewData["Title"] = $"Loại lỗi {Model.Code}";
+}
+<div class="admin-page-heading">
+    <div><h2>Loại lỗi @Model.Code</h2><p>Danh mục: @Model.CategoryName</p></div>
+    <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="WarrantyPolicies" asp-action="Index" asp-fragment="defects"><i class="fa fa-arrow-left me-1"></i>Quay lại</a>
+</div>
+<div class="admin-detail-card" style="max-width:820px">
+    <form asp-area="Admin" asp-controller="WarrantyPolicies" asp-action="EditDefect" asp-route-id="@Model.Id" method="post">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+        <div class="mb-3">
+            <label asp-for="Name" class="form-label"></label>
+            <input asp-for="Name" class="form-control" maxlength="256" />
+            <span asp-validation-for="Name" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="Coverage" class="form-label"></label>
+            <select asp-for="Coverage" class="form-select" style="max-width:320px">
+                @foreach (var coverage in Enum.GetValues<DefectCoverage>())
+                {
+                    <option value="@coverage">@ClaimDisplay.CoverageText(coverage)</option>
+                }
+            </select>
+        </div>
+        <div class="mb-3">
+            <label asp-for="Recognition" class="form-label"></label>
+            <textarea asp-for="Recognition" class="form-control" rows="2" maxlength="500"></textarea>
+        </div>
+        <div class="mb-3">
+            <label asp-for="EvidenceGuide" class="form-label"></label>
+            <textarea asp-for="EvidenceGuide" class="form-control" rows="3" maxlength="500"></textarea>
+        </div>
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label asp-for="Source" class="form-label"></label>
+                <input asp-for="Source" class="form-control" maxlength="256" />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="SourceUrl" class="form-label"></label>
+                <input asp-for="SourceUrl" class="form-control" maxlength="500" />
+                <span asp-validation-for="SourceUrl" class="text-danger"></span>
+            </div>
+        </div>
+        <div class="form-check form-switch mb-3">
+            <input asp-for="IsActive" class="form-check-input" role="switch" />
+            <label asp-for="IsActive" class="form-check-label"></label>
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fa fa-save me-2"></i>Lưu</button>
+    </form>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
