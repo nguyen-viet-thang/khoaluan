@@ -3,7 +3,7 @@ namespace PopPop.Data.Entities;
 /// <summary>
 /// Category entity
 /// </summary>
-public class Category : IBaseEntity<int>
+public class Category : ICatalogGroupEntity
 {
     public int Id { get; set; }
 

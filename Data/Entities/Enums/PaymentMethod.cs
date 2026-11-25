@@ -2,6 +2,6 @@ namespace PopPop.Data.Entities.Enums;
 
 public enum PaymentMethod
 {
-    CashOnDelivery = 1,
-    VnPay = 2
+    /// <summary>Cash on delivery: the customer pays the courier when receiving the goods.</summary>
+    CashOnDelivery = 1
 }

@@ -28,16 +28,11 @@ public class Order : IBaseEntity<int>
 
     public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Unpaid;
 
-    public string? VnpayTransactionNo { get; set; }
-
-    public string? VnpayBankCode { get; set; }
-
-    public string? VnpayResponseCode { get; set; }
-
     public DateTime? PaidAt { get; set; }
 
-    public DateTime? PaymentExpiresAt { get; set; }
-
+    /// <summary>
+    /// Set when the reserved stock was returned (order cancelled); prevents restocking twice.
+    /// </summary>
     public DateTime? StockReleasedAt { get; set; }
 
     /// <summary>

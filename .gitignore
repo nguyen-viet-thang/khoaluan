@@ -363,3 +363,8 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# Runtime uploads (product images uploaded from admin)
+wwwroot/uploads/
+
+# Private uploads: warranty claim evidence videos/photos (may contain customers' personal data)
+App_Data/

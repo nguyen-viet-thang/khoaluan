@@ -42,6 +42,10 @@ Tạo file `appsettings.json` và cập nhật `"DefaultConnection"` SQL Server 
   "ConnectionStrings": {
     "DefaultConnection": "Server=[YOUR_SERVER_NAME];Database=[YOUR_DATABASE_NAME];User Id=[YOUR_USER_ID];Password=[YOUR_PASSWORD];TrustServerCertificate=True;"
   },
+  "Shipping": {
+    "Fee": 30000,
+    "FreeShippingThreshold": 500000
+  },
   "Logging": {
     "LogLevel": {
       "Default": "Information",
@@ -58,6 +62,10 @@ Có thể tạo luôn file `appsettings.json` bằng lệnh trong `terminal`
   "ConnectionStrings": {
     "DefaultConnection": "Server=[YOUR_SERVER_NAME];Database=[YOUR_DATABASE_NAME];User Id=[YOUR_USER_ID];Password=[YOUR_PASSWORD];TrustServerCertificate=True;"
   },
+  "Shipping": {
+    "Fee": 30000,
+    "FreeShippingThreshold": 500000
+  },
   "Logging": {
     "LogLevel": {
       "Default": "Information",
@@ -68,6 +76,8 @@ Có thể tạo luôn file `appsettings.json` bằng lệnh trong `terminal`
 }
 '@ | Set-Content -Path "appsettings.json" -Encoding utf8
 ```
+
+> Mục `Shipping` (không bắt buộc): phí giao hàng (VNĐ) và mức đơn tối thiểu để được miễn phí giao hàng. Nếu bỏ trống, hệ thống dùng mặc định 30.000 ₫ và miễn phí cho đơn từ 500.000 ₫. Hệ thống chỉ hỗ trợ thanh toán khi nhận hàng (COD).
 
 #### 3. Cài đặt NuGet packages
 

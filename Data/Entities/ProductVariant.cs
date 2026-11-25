@@ -39,4 +39,5 @@ public class ProductVariant : IBaseEntity<int>
     public virtual ICollection<CartItem> CartItems { get; set; } = new List<CartItem>();
     public virtual ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
     public virtual ICollection<InventoryTransaction> InventoryTransactions { get; set; } = new List<InventoryTransaction>();
+    public virtual ICollection<VariantSpecValue> SpecValues { get; set; } = new List<VariantSpecValue>();
 }

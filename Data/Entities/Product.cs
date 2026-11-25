@@ -42,9 +42,16 @@ public class Product : IBaseEntity<int>
     /// </summary>
     public DateTime UpdatedAt { get; set; }
 
+    /// <summary>
+    /// A product is for sale only when it, its category and its brand are all active.
+    /// Category and Brand must be loaded; database queries use the same rule inline.
+    /// </summary>
+    public bool IsOnSale() => IsActive && Category?.IsActive == true && Brand?.IsActive == true;
+
     // Navigation properties
     public virtual Category? Category { get; set; }
     public virtual Brand? Brand { get; set; }
     public virtual ICollection<ProductVariant> ProductVariants { get; set; } = new List<ProductVariant>();
     public virtual ICollection<ProductImage> ProductImages { get; set; } = new List<ProductImage>();
+    public virtual ICollection<ProductSpecValue> SpecValues { get; set; } = new List<ProductSpecValue>();
 }

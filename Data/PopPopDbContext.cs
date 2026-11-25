@@ -8,9 +8,6 @@ namespace PopPop.Data
 {
     public class PopPopDbContext : IdentityDbContext<User, Role, string>
     {
-        // Static datetime for seed data to avoid EF Core warnings
-        private static readonly DateTime _seedDateTime = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
         public PopPopDbContext(DbContextOptions<PopPopDbContext> options) 
             : base(options)
         {
@@ -28,14 +25,37 @@ namespace PopPop.Data
         public DbSet<Order> Orders { get; set; } = null!;
         public DbSet<OrderItem> OrderItems { get; set; } = null!;
         public DbSet<InventoryTransaction> InventoryTransactions { get; set; } = null!;
-        public DbSet<ChatConversation> ChatConversations { get; set; } = null!;
-        public DbSet<ChatMessage> ChatMessages { get; set; } = null!;
+        public DbSet<DefectType> DefectTypes { get; set; } = null!;
+        public DbSet<WarrantyPolicy> WarrantyPolicies { get; set; } = null!;
+        public DbSet<WarrantyClaim> WarrantyClaims { get; set; } = null!;
+        public DbSet<WarrantyClaimMedia> WarrantyClaimMedia { get; set; } = null!;
+        public DbSet<WarrantyClaimHistory> WarrantyClaimHistory { get; set; } = null!;
+        public DbSet<Notification> Notifications { get; set; } = null!;
+        public DbSet<SpecAttribute> SpecAttributes { get; set; } = null!;
+        public DbSet<SpecOption> SpecOptions { get; set; } = null!;
+        public DbSet<ProductSpecValue> ProductSpecValues { get; set; } = null!;
+        public DbSet<VariantSpecValue> VariantSpecValues { get; set; } = null!;
 
         #endregion
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            #region User Configuration
+
+            modelBuilder.Entity<User>(entity =>
+            {
+                // Existing accounts get the migration time as their registration date.
+                entity.Property(e => e.CreatedAt)
+                    .HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(e => e.LockReason)
+                    .HasMaxLength(500);
+                // Email / NormalizedEmail / EmailConfirmed (+ EmailIndex) come from the Identity base mapping:
+                // customers sign in with a verified email, staff/admin/older accounts with their phone number.
+            });
+
+            #endregion
 
             #region Category Configuration
 
@@ -197,12 +217,6 @@ namespace PopPop.Data
                 entity.Property(e => e.PaymentStatus)
                     .HasDefaultValue(PaymentStatus.Unpaid)
                     .HasSentinel((PaymentStatus)0);
-                entity.Property(e => e.VnpayTransactionNo)
-                    .HasMaxLength(50);
-                entity.Property(e => e.VnpayBankCode)
-                    .HasMaxLength(50);
-                entity.Property(e => e.VnpayResponseCode)
-                    .HasMaxLength(10);
 
                 entity.Property(e => e.TotalAmount)
                     .HasPrecision(18, 2);
@@ -270,43 +284,116 @@ namespace PopPop.Data
 
             #endregion
 
-            modelBuilder.Entity<ChatConversation>(entity =>
+            #region Warranty / claims Configuration
+
+            modelBuilder.Entity<DefectType>(entity =>
             {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.CustomerUserId).IsRequired();
-                entity.HasIndex(e => e.CustomerUserId).IsUnique();
-                entity.HasIndex(e => e.UpdatedAtUtc);
-                entity.HasOne(e => e.Customer)
-                    .WithMany()
-                    .HasForeignKey(e => e.CustomerUserId)
-                    .OnDelete(DeleteBehavior.Cascade);
+                entity.Property(e => e.Code).IsRequired().HasMaxLength(10);
+                entity.HasIndex(e => e.Code).IsUnique();
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(256);
+                entity.Property(e => e.Recognition).HasMaxLength(500);
+                entity.Property(e => e.EvidenceGuide).HasMaxLength(500);
+                entity.Property(e => e.Source).HasMaxLength(256);
+                entity.Property(e => e.SourceUrl).HasMaxLength(500);
+                entity.HasOne(e => e.Category).WithMany().HasForeignKey(e => e.CategoryId).OnDelete(DeleteBehavior.Cascade);
             });
 
-            modelBuilder.Entity<ChatMessage>(entity =>
+            modelBuilder.Entity<WarrantyPolicy>(entity =>
             {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.SenderUserId).IsRequired();
-                entity.Property(e => e.Content).IsRequired().HasMaxLength(2000);
-                entity.HasIndex(e => new { e.ConversationId, e.SentAtUtc });
-                entity.HasOne(e => e.Conversation)
-                    .WithMany(e => e.Messages)
-                    .HasForeignKey(e => e.ConversationId)
-                    .OnDelete(DeleteBehavior.Cascade);
-                entity.HasOne(e => e.Sender)
-                    .WithMany()
-                    .HasForeignKey(e => e.SenderUserId)
-                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(e => new { e.BrandId, e.CategoryId }).IsUnique();
+                entity.Property(e => e.CoveredParts).HasMaxLength(256);
+                entity.Property(e => e.Notes).HasMaxLength(500);
+                entity.Property(e => e.SourceUrl).HasMaxLength(500);
+                entity.HasOne(e => e.Brand).WithMany().HasForeignKey(e => e.BrandId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Category).WithMany().HasForeignKey(e => e.CategoryId).OnDelete(DeleteBehavior.Cascade);
             });
+
+            modelBuilder.Entity<WarrantyClaim>(entity =>
+            {
+                entity.Property(e => e.Code).IsRequired().HasMaxLength(40);
+                entity.HasIndex(e => e.Code).IsUnique();
+                entity.HasIndex(e => new { e.Status, e.CreatedAt });
+                entity.Property(e => e.Description).IsRequired().HasMaxLength(2000);
+                entity.Property(e => e.SerialNumber).HasMaxLength(100);
+                entity.Property(e => e.StaffNote).HasMaxLength(2000);
+                entity.Property(e => e.ReturnCarrier).HasMaxLength(100);
+                entity.Property(e => e.ReturnTrackingCode).HasMaxLength(100);
+                entity.Property(e => e.OutboundCarrier).HasMaxLength(100);
+                entity.Property(e => e.OutboundTrackingCode).HasMaxLength(100);
+                // Claims are legal/audit records: never removed together with orders, users or defect types.
+                entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.Order).WithMany().HasForeignKey(e => e.OrderId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.OrderItem).WithMany().HasForeignKey(e => e.OrderItemId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.DefectType).WithMany().HasForeignKey(e => e.DefectTypeId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<WarrantyClaimMedia>(entity =>
+            {
+                entity.Property(e => e.StoredFileName).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.OriginalFileName).IsRequired().HasMaxLength(256);
+                entity.Property(e => e.ContentType).IsRequired().HasMaxLength(100);
+                entity.HasOne(e => e.Claim).WithMany(e => e.Media).HasForeignKey(e => e.ClaimId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<WarrantyClaimHistory>(entity =>
+            {
+                entity.Property(e => e.Note).HasMaxLength(2000);
+                entity.Property(e => e.ActorName).IsRequired().HasMaxLength(256);
+                entity.HasOne(e => e.Claim).WithMany(e => e.History).HasForeignKey(e => e.ClaimId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<Notification>(entity =>
+            {
+                entity.Property(e => e.Title).IsRequired().HasMaxLength(256);
+                entity.Property(e => e.Message).HasMaxLength(1000);
+                entity.Property(e => e.Url).HasMaxLength(300);
+                entity.HasIndex(e => new { e.UserId, e.IsRead, e.CreatedAt });
+                entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<SpecAttribute>(entity =>
+            {
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.Hint).HasMaxLength(300);
+                entity.HasIndex(e => new { e.CategoryId, e.Name }).IsUnique();
+                entity.HasOne(e => e.Category).WithMany().HasForeignKey(e => e.CategoryId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<SpecOption>(entity =>
+            {
+                entity.Property(e => e.Value).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.Hint).HasMaxLength(300);
+                entity.HasIndex(e => new { e.SpecAttributeId, e.Value }).IsUnique();
+                entity.HasOne(e => e.Attribute).WithMany(e => e.Options).HasForeignKey(e => e.SpecAttributeId).OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<ProductSpecValue>(entity =>
+            {
+                entity.HasKey(e => new { e.ProductId, e.SpecOptionId });
+                entity.HasIndex(e => e.SpecOptionId);
+                entity.HasOne(e => e.Product).WithMany(e => e.SpecValues).HasForeignKey(e => e.ProductId).OnDelete(DeleteBehavior.Cascade);
+                // Restrict: an option still in use cannot be deleted silently.
+                entity.HasOne(e => e.Option).WithMany().HasForeignKey(e => e.SpecOptionId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<VariantSpecValue>(entity =>
+            {
+                entity.HasKey(e => new { e.ProductVariantId, e.SpecOptionId });
+                entity.HasIndex(e => e.SpecOptionId);
+                entity.HasOne(e => e.Variant).WithMany(e => e.SpecValues).HasForeignKey(e => e.ProductVariantId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Option).WithMany().HasForeignKey(e => e.SpecOptionId).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            #endregion
 
             #region Seed Data
 
             SeedRoles(modelBuilder);
-            SeedCategories(modelBuilder);
-            SeedBrands(modelBuilder);
-            SeedProducts(modelBuilder);
-            SeedProductVariants(modelBuilder);
-            SeedProductImages(modelBuilder);
+            Seed.CatalogSeedData.Apply(modelBuilder);
+            Seed.WarrantySeedData.Apply(modelBuilder);
+            Seed.SpecSeedData.Apply(modelBuilder);
             SeedAdmin(modelBuilder);
+            Seed.UserSeedData.Apply(modelBuilder);
 
             #endregion
         }
@@ -348,200 +435,6 @@ namespace PopPop.Data
         }
 
         /// <summary>
-        /// Seed default categories
-        /// </summary>
-        private static void SeedCategories(ModelBuilder modelBuilder)
-        {
-            var categories = Enumerable.Range(1, 40)
-                .Select(index => $"Danh mục cầu lông {index:00}")
-                .ToArray();
-
-            var data = categories.Select((name, index) => new Category
-            {
-                Id = index + 1,
-                Name = name,
-                Description = $"Danh mục {name}",
-                IsActive = true,
-                CreatedAt = _seedDateTime.AddDays(index),
-                UpdatedAt = _seedDateTime.AddDays(index)
-            }).ToList();
-
-            modelBuilder.Entity<Category>().HasData(data);
-        }
-
-        /// <summary>
-        /// Seed default brands
-        /// </summary>
-        private static void SeedBrands(ModelBuilder modelBuilder)
-        {
-            var brands = Enumerable.Range(1, 40)
-                .Select(index => $"Thương hiệu {index:00}")
-                .ToArray();
-
-            var data = brands.Select((name, index) => new Brand
-            {
-                Id = index + 1,
-                Name = name,
-                Description = $"Thương hiệu {name} cho thể thao cầu lông",
-                IsActive = true,
-                CreatedAt = _seedDateTime.AddDays(index),
-                UpdatedAt = _seedDateTime.AddDays(index)
-            }).ToList();
-
-            modelBuilder.Entity<Brand>().HasData(data);
-        }
-
-        /// <summary>
-        /// Seed sample products
-        /// </summary>
-        private static void SeedProducts(ModelBuilder modelBuilder)
-        {
-            var productNames = new[]
-            {
-                "Vợt Yonex Astrox 99",
-                "Vợt Yonex Nanoflare 800",
-                "Vợt Victor Brave Sword 12",
-                "Vợt Li-Ning Turbo 900",
-                "Giày Yonex Power Cushion",
-                "Giày Victor A830",
-                "Giày Li-Ning Sprint",
-                "Giày Mizuno Wave Rider",
-                "Áo Yonex Training",
-                "Áo Victor Sport",
-                "Áo Li-Ning Pro",
-                "Áo Mizuno Active",
-                "Túi đựng vợt Yonex",
-                "Túi đựng vợt Victor",
-                "Lưới cầu lông Li-Ning",
-                "Bóng cầu lông Yonex",
-                "Băng quấn cổ tay",
-                "Dây căng vợt 3U",
-                "Dây căng vợt 4U",
-                "Balo thể thao Pro",
-                "Cầu lông chuyên nghiệp",
-                "Vợt Head Graphene 360",
-                "Vợt Babolat X100",
-                "Vợt Apacs Z-Force",
-                "Giày Head Sprint",
-                "Giày Adidas Court",
-                "Giày Nike Zoom",
-                "Áo Nike Court",
-                "Áo Puma Energy",
-                "Túi vợt Head",
-                "Lưới đánh bóng",
-                "Bóng cầu lông premium",
-                "Dụng cụ bảo vệ vợt",
-                "Bọc cán vợt",
-                "Vợt đi kèm dây căng",
-                "Vợt cho người mới",
-                "Vợt cho người chuyên nghiệp",
-                "Giày đệm chống chấn",
-                "Áo khoác thời trang",
-                "Áo chạy bộ thể thao",
-                "Vợt thể thao đa năng",
-                "Giày chạy bộ cầu lông",
-                "Balo di chuyển thể thao",
-                "Bọc bảo vệ vợt",
-                "Lưới thi đấu tiêu chuẩn",
-                "Bóng chất lượng cao",
-                "Vợt niềm tin",
-                "Vợt kết hợp công nghệ",
-                "Giày nhẹ bám sân",
-                "Áo chống nắng",
-                "Băng quấn cổ tay chuyên dụng",
-                "Dây căng vợt tối ưu",
-                "Túi chứa phụ kiện",
-                "Vợt săn điểm cao",
-                "Vợt đấm mạnh",
-                "Vợt khóa gió",
-                "Giày cải thiện phản xạ",
-                "Áo thể thao mùa hè",
-                "Balo cho vận động viên"
-            };
-
-            var products = new List<Product>();
-            for (var i = 1; i <= 60; i++)
-            {
-                var productName = productNames[(i - 1) % productNames.Length];
-                var categoryId = ((i - 1) % 12) + 1;
-                var brandId = ((i - 1) % 12) + 1;
-
-                products.Add(new Product
-                {
-                    Id = i,
-                    Name = $"{productName} {i}",
-                    Description = $"Sản phẩm {i} dành cho luyện tập và thi đấu cầu lông, chất lượng cao và bền bỉ.",
-                    CategoryId = categoryId,
-                    BrandId = brandId,
-                    IsActive = true,
-                    CreatedAt = _seedDateTime.AddDays(i),
-                    UpdatedAt = _seedDateTime.AddDays(i)
-                });
-            }
-
-            modelBuilder.Entity<Product>().HasData(products);
-        }
-
-        /// <summary>
-        /// Seed sample product variants
-        /// </summary>
-        private static void SeedProductVariants(ModelBuilder modelBuilder)
-        {
-            var variants = new List<ProductVariant>();
-            var variantId = 1;
-
-            for (var productId = 1; productId <= 60; productId++)
-            {
-                var basePrice = 250000 + (productId * 135000) % 5000000;
-
-                for (var index = 1; index <= 2; index++)
-                {
-                    variants.Add(new ProductVariant
-                    {
-                        Id = variantId++,
-                        ProductId = productId,
-                        SKU = $"POP{productId:000}-{index}",
-                        VariantLabel = index == 1 ? "Màu Đen" : "Màu Trắng",
-                        Price = basePrice + (index * 150000),
-                        StockQuantity = 15 + ((productId + index) % 30),
-                        IsActive = true
-                    });
-                }
-            }
-
-            modelBuilder.Entity<ProductVariant>().HasData(variants);
-        }
-
-        /// <summary>
-        /// Seed product images
-        /// </summary>
-        private static void SeedProductImages(ModelBuilder modelBuilder)
-        {
-            var images = new List<ProductImage>();
-            var imageId = 1;
-
-            for (var productId = 1; productId <= 60; productId++)
-            {
-                var primaryImage = ((productId - 1) % 8) + 1;
-
-                for (var index = 1; index <= 2; index++)
-                {
-                    images.Add(new ProductImage
-                    {
-                        Id = imageId++,
-                        ProductId = productId,
-                        ImageUrl = $"/img/product/p{((productId + index - 2) % 8) + 1}.jpg",
-                        IsPrimary = index == 1,
-                        SortOrder = index
-                    });
-                }
-            }
-
-            modelBuilder.Entity<ProductImage>().HasData(images);
-        }
-
-
-        /// <summary>
         /// Seed admin user
         /// </summary>
         private static void SeedAdmin(ModelBuilder modelBuilder)
@@ -550,12 +443,12 @@ namespace PopPop.Data
             {
                 Id = "admin-001",
                 ConcurrencyStamp = "5336cfb7-e6b0-46a0-944a-8b862c73bc55",
-                UserName = "admin@poppop.com",
-                NormalizedUserName = "ADMIN@POPPOP.COM",
-                Email = "admin@poppop.com",
-                NormalizedEmail = "ADMIN@POPPOP.COM",
+                // Sign in at /admin/login with this phone number (password Admin@123, change it before going live).
+                UserName = "0900000000",
+                NormalizedUserName = "0900000000",
+                PhoneNumber = "0900000000",
                 FullName = "Admin PôpPôp",
-                EmailConfirmed = true,
+                CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 SecurityStamp = "e43821f8-8664-47f1-a77b-a2bda06ff0a6",
                 PhoneNumberConfirmed = false,
                 TwoFactorEnabled = false,

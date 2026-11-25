@@ -3,7 +3,7 @@ namespace PopPop.Data.Entities;
 /// <summary>
 /// Brand entity
 /// </summary>
-public class Brand : IBaseEntity<int>
+public class Brand : ICatalogGroupEntity
 {
     public int Id { get; set; }
 
@@ -21,6 +21,11 @@ public class Brand : IBaseEntity<int>
     /// Is brand active
     /// </summary>
     public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// Days after delivery within which a customer may report a defect found on receipt / wrong item.
+    /// </summary>
+    public int ReceiptDefectDays { get; set; } = 3;
 
     /// <summary>
     /// Created timestamp

@@ -23,5 +23,15 @@ public enum InventoryTransactionType
     /// <summary>
     /// Adjustment decrease
     /// </summary>
-    AdjustmentDecrease = 4
+    AdjustmentDecrease = 4,
+
+    /// <summary>
+    /// Stock issued to replace a customer's item under a warranty / receipt-defect claim
+    /// </summary>
+    ClaimReplacement = 5,
+
+    /// <summary>
+    /// Returned item that is still sellable (e.g. wrong item delivered) put back into stock
+    /// </summary>
+    ClaimRestock = 6
 }

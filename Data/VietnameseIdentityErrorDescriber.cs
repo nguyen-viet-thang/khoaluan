@@ -14,13 +14,13 @@ public sealed class VietnameseIdentityErrorDescriber : IdentityErrorDescriber
 
     public override IdentityError LoginAlreadyAssociated() => CreateError(nameof(LoginAlreadyAssociated), "Tài khoản đăng nhập này đã được liên kết với người dùng khác.");
 
-    public override IdentityError InvalidUserName(string? userName) => CreateError(nameof(InvalidUserName), "Tên đăng nhập không hợp lệ.");
+    public override IdentityError InvalidUserName(string? userName) => CreateError(nameof(InvalidUserName), "Số điện thoại không hợp lệ.");
 
-    public override IdentityError InvalidEmail(string? email) => CreateError(nameof(InvalidEmail), "Địa chỉ email không hợp lệ.");
 
-    public override IdentityError DuplicateUserName(string userName) => CreateError(nameof(DuplicateUserName), "Tên đăng nhập này đã được sử dụng.");
+    public override IdentityError DuplicateUserName(string userName) => CreateError(nameof(DuplicateUserName),
+        // User names are always the phone number in this shop.
+        "Số điện thoại này đã được đăng ký. Hãy đăng nhập; nếu quên mật khẩu, vui lòng liên hệ cửa hàng để được đặt lại.");
 
-    public override IdentityError DuplicateEmail(string email) => CreateError(nameof(DuplicateEmail), "Địa chỉ email này đã được sử dụng.");
 
     public override IdentityError InvalidRoleName(string? role) => CreateError(nameof(InvalidRoleName), "Tên vai trò không hợp lệ.");
 
