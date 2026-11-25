@@ -1,0 +1,259 @@
+@model PopPop.Models.CreateClaimViewModel
+@using System.Text.Json
+@using PopPop.Data.Entities.Enums
+@using PopPop.Services.Implementations
+@{
+    ViewData["Title"] = "Yêu cầu bảo hành / đổi hàng";
+    var limits = Model.Limits;
+    var itemsJson = JsonSerializer.Serialize(Model.Items.Select(item => new
+    {
+        item.OrderItemId, item.CategoryId, item.Quantity, item.ReceiptWindowOpen, item.WarrantyWindowOpen, item.OpenClaimCode,
+        item.ReceiptDefectDays, item.WarrantyDays,
+        ReceiptDeadline = ShopClock.ToLocal(item.ReceiptDeadline).ToString("dd/MM/yyyy"),
+        WarrantyDeadline = item.WarrantyDeadline is { } warranty ? ShopClock.ToLocal(warranty).ToString("dd/MM/yyyy") : null
+    }));
+    var defectsJson = JsonSerializer.Serialize(Model.Defects.Select(defect => new
+    {
+        defect.Id, defect.Code, defect.CategoryId, defect.Name, defect.Recognition, defect.EvidenceGuide,
+        Coverage = (int)defect.Coverage, defect.Source, defect.SourceUrl
+    }));
+}
+<section class="section_gap">
+    <div class="container" style="max-width:960px">
+        <h2>Yêu cầu bảo hành / đổi hàng</h2>
+        <p class="text-muted">
+            Đơn hàng <strong>@Model.OrderCode</strong> · giao thành công ngày @ShopClock.ToLocal(Model.DeliveredAt).ToString("dd/MM/yyyy").
+            Cửa hàng <strong>không đổi hàng vì không vừa ý và không hoàn tiền</strong>; chỉ tiếp nhận lỗi khi nhận hàng và lỗi được bảo hành theo chính sách của hãng.
+            Yêu cầu hợp lệ được đổi sản phẩm mới, không hợp lệ sẽ bị từ chối kèm lý do.
+        </p>
+
+        <form asp-controller="Claims" asp-action="Create" method="post" enctype="multipart/form-data" id="claim-form">
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
+            }
+            <input type="hidden" asp-for="OrderId" />
+            <input type="hidden" asp-for="ProductLocked" />
+
+            @{
+                var lockedItem = Model.ProductLocked ? Model.Items.FirstOrDefault(item => item.OrderItemId == Model.OrderItemId) : null;
+            }
+            @if (lockedItem is not null)
+            {
+                <h4 class="mt-4">1. Sản phẩm cần bảo hành</h4>
+                <div class="card mb-3">
+                    <div class="card-body d-flex flex-wrap align-items-center" style="gap:14px">
+                        @* Hidden checked radio: the defect script reads the selected product from .claim-item:checked *@
+                        <input type="radio" name="OrderItemId" value="@lockedItem.OrderItemId" class="claim-item" checked hidden />
+                        <img src="@Url.Content(lockedItem.ImageUrl ?? "~/img/logo.png")" alt="" width="72" height="72" style="object-fit:contain;mix-blend-mode:multiply" />
+                        <div class="flex-grow-1">
+                            <strong>@lockedItem.ProductName</strong><br />
+                            <small class="text-muted">@lockedItem.SKU · @lockedItem.BrandName · @lockedItem.CategoryName · SL: @lockedItem.Quantity × @lockedItem.UnitPrice.ToString("N0") ₫</small><br />
+                            <small>
+                                Báo lỗi khi nhận: @(lockedItem.ReceiptWindowOpen ? $"đến {ShopClock.ToLocal(lockedItem.ReceiptDeadline):dd/MM/yyyy}" : "đã hết hạn") ·
+                                Bảo hành hãng: @(lockedItem.WarrantyDays == 0 ? "không áp dụng" : lockedItem.WarrantyWindowOpen ? $"đến {ShopClock.ToLocal(lockedItem.WarrantyDeadline!.Value):dd/MM/yyyy}" : "đã hết hạn")
+                            </small>
+                        </div>
+                        <a asp-controller="Claims" asp-action="Start" class="btn btn-outline-secondary btn-sm">Chọn sản phẩm khác</a>
+                    </div>
+                </div>
+            }
+            else
+            {
+            <h4 class="mt-4">1. Chọn sản phẩm</h4>
+            <div class="list-group mb-3">
+                @foreach (var item in Model.Items)
+                {
+                    var blocked = item.OpenClaimCode is not null || (!item.ReceiptWindowOpen && !item.WarrantyWindowOpen);
+                    <label class="list-group-item d-flex align-items-center @(blocked ? "text-muted" : string.Empty)" style="gap:14px">
+                        <input type="radio" name="OrderItemId" value="@item.OrderItemId" class="claim-item" disabled="@blocked"
+                               checked="@(Model.OrderItemId == item.OrderItemId)" />
+                        <img src="@Url.Content(item.ImageUrl ?? "~/img/logo.png")" alt="" width="56" height="56" style="object-fit:contain;mix-blend-mode:multiply" />
+                        <span class="flex-grow-1">
+                            <strong>@item.ProductName</strong> <small>(@item.SKU · SL: @item.Quantity)</small><br />
+                            <small>
+                                @item.BrandName · @item.CategoryName ·
+                                Báo lỗi khi nhận: @(item.ReceiptWindowOpen ? $"đến {ShopClock.ToLocal(item.ReceiptDeadline):dd/MM/yyyy}" : "đã hết hạn") ·
+                                Bảo hành hãng: @(item.WarrantyDays == 0 ? "không áp dụng" : item.WarrantyWindowOpen ? $"đến {ShopClock.ToLocal(item.WarrantyDeadline!.Value):dd/MM/yyyy}" : "đã hết hạn")
+                            </small>
+                            @if (item.OpenClaimCode is not null)
+                            {
+                                <br /><small class="text-warning">Đang có yêu cầu @item.OpenClaimCode chưa xử lý xong.</small>
+                            }
+                        </span>
+                    </label>
+                }
+            </div>
+            }
+
+            <h4 class="mt-4">2. Nguyên nhân cần bảo hành</h4>
+            <label for="defect-select">Loại lỗi</label>
+            <select asp-for="DefectTypeId" class="form-control mb-2" id="defect-select">
+                <option value="">-- Chọn sản phẩm trước --</option>
+            </select>
+            <div id="defect-info" class="card mb-3" hidden>
+                <div class="card-body">
+                    <div id="defect-coverage" class="mb-2"></div>
+                    <p class="mb-1" id="defect-recognition"></p>
+                    <p class="mb-1" id="defect-evidence"></p>
+                    <small class="text-muted" id="defect-source"></small>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-3 form-group">
+                    <label asp-for="Quantity">Số lượng</label>
+                    <input asp-for="Quantity" type="number" min="1" class="form-control" id="claim-quantity" />
+                </div>
+                <div class="col-md-9 form-group">
+                    <label asp-for="SerialNumber"></label>
+                    <input asp-for="SerialNumber" class="form-control" maxlength="100" placeholder="Với vợt: mã in trên thân/cán hoặc tem chính hãng (nếu có)" />
+                </div>
+            </div>
+            <div class="form-group">
+                <label asp-for="Description"></label>
+                <textarea asp-for="Description" class="form-control" rows="4" maxlength="2000"
+                          placeholder="Mô tả lỗi phát hiện khi nào, trong hoàn cảnh nào. Với vợt: ghi mức căng dây đang dùng."></textarea>
+                <span asp-validation-for="Description" class="text-danger"></span>
+            </div>
+
+            <h4 class="mt-4">3. Video / ảnh minh chứng</h4>
+            <div class="alert alert-info">
+                <strong>Bắt buộc có ít nhất 1 video.</strong> Tối đa @limits.MaxVideos video (mỗi video ≤ @(limits.MaxVideoBytes / 1024 / 1024) MB: MP4, MOV, WEBM)
+                và @limits.MaxImages ảnh (mỗi ảnh ≤ @(limits.MaxImageBytes / 1024 / 1024) MB: JPG, PNG, WEBP).
+                Quay rõ nét, đủ sáng, liền mạch, không cắt ghép. Video chỉ cửa hàng xem được.
+            </div>
+            <input type="file" name="files" id="claim-files" class="form-control mb-2" multiple
+                   accept="@limits.VideoExtensions,@limits.ImageExtensions,video/*,image/*" />
+            <ul id="file-list" class="list-unstyled small"></ul>
+
+            <div class="progress mb-3" id="upload-progress" hidden style="height:22px">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width:0%">0%</div>
+            </div>
+            <div class="alert alert-danger" id="client-error" hidden></div>
+
+            <button type="submit" class="primary-btn" id="claim-submit">Gửi yêu cầu</button>
+            <a asp-controller="Claims" asp-action="Start" class="ml-3">Quay lại chọn sản phẩm</a>
+        </form>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        (function () {
+            const items = @Html.Raw(itemsJson);
+            const defects = @Html.Raw(defectsJson);
+            const limits = { maxVideos: @limits.MaxVideos, maxVideoBytes: @limits.MaxVideoBytes, maxImages: @limits.MaxImages, maxImageBytes: @limits.MaxImageBytes };
+            const selectedDefect = '@(Model.DefectTypeId?.ToString() ?? string.Empty)';
+            const select = document.getElementById('defect-select');
+            const quantity = document.getElementById('claim-quantity');
+            const info = document.getElementById('defect-info');
+            const coverageText = { 1: 'Bảo hành theo hãng', 2: 'Lỗi khi nhận hàng', 3: 'Không được chấp nhận' };
+
+            function currentItem() {
+                const radio = document.querySelector('.claim-item:checked');
+                return radio ? items.find(item => item.OrderItemId === Number(radio.value)) : null;
+            }
+
+            // Why a defect cannot be chosen for this item (null = allowed).
+            function blockReason(defect, item) {
+                if (defect.Coverage === 3) return 'không thuộc diện bảo hành/đổi hàng';
+                if (defect.Coverage === 2 && !item.ReceiptWindowOpen) return `quá hạn báo lỗi khi nhận (${item.ReceiptDefectDays} ngày)`;
+                if (defect.Coverage === 1 && item.WarrantyDays === 0) return 'hãng không bảo hành nhóm sản phẩm này';
+                if (defect.Coverage === 1 && !item.WarrantyWindowOpen) return `hết hạn bảo hành (${item.WarrantyDays} ngày)`;
+                return null;
+            }
+
+            function renderDefects(keepSelection) {
+                const item = currentItem();
+                const previous = keepSelection ? select.value || selectedDefect : '';
+                select.innerHTML = '';
+                if (!item) { select.add(new Option('-- Chọn sản phẩm trước --', '')); info.hidden = true; return; }
+                quantity.max = item.Quantity;
+                select.add(new Option('-- Chọn loại lỗi --', ''));
+                for (const defect of defects.filter(d => d.CategoryId === item.CategoryId)) {
+                    const reason = blockReason(defect, item);
+                    const option = new Option(`${defect.Code} – ${defect.Name}${reason ? ' (' + reason + ')' : ''}`, defect.Id);
+                    option.disabled = reason !== null;
+                    select.add(option);
+                }
+                if (previous && [...select.options].some(o => o.value === previous && !o.disabled)) select.value = previous;
+                renderInfo();
+            }
+
+            function renderInfo() {
+                const defect = defects.find(d => d.Id === Number(select.value));
+                info.hidden = !defect;
+                if (!defect) return;
+                document.getElementById('defect-coverage').innerHTML = `<span class="badge ${defect.Coverage === 1 ? 'badge-primary' : 'badge-info'}">${coverageText[defect.Coverage]}</span>`;
+                document.getElementById('defect-recognition').textContent = defect.Recognition ? 'Dấu hiệu: ' + defect.Recognition : '';
+                document.getElementById('defect-evidence').textContent = defect.EvidenceGuide ? 'Video cần quay: ' + defect.EvidenceGuide : '';
+                const source = document.getElementById('defect-source');
+                source.textContent = defect.Source ? 'Căn cứ: ' + defect.Source : '';
+            }
+
+            // main.js turns every <select> into a "nice-select" widget on document ready; that widget never sees
+            // options added later, so restore the native select (this ready handler runs after main.js's).
+            if (window.jQuery) {
+                jQuery(function () {
+                    if (jQuery.fn.niceSelect) { jQuery(select).niceSelect('destroy'); }
+                    select.style.display = '';
+                });
+            }
+
+            document.querySelectorAll('.claim-item').forEach(radio => radio.addEventListener('change', () => renderDefects(false)));
+            select.addEventListener('change', renderInfo);
+            renderDefects(true);
+
+            // ---- File checks + upload with progress ----
+            const fileInput = document.getElementById('claim-files');
+            const fileList = document.getElementById('file-list');
+            const errorBox = document.getElementById('client-error');
+            const mb = bytes => (bytes / 1024 / 1024).toFixed(1) + ' MB';
+
+            function checkFiles() {
+                const files = [...fileInput.files];
+                const videos = files.filter(f => f.type.startsWith('video/') || /\.(mp4|mov|webm)$/i.test(f.name));
+                const images = files.filter(f => !videos.includes(f));
+                fileList.innerHTML = files.map(f => `<li>${videos.includes(f) ? '🎬' : '🖼️'} ${f.name} (${mb(f.size)})</li>`).join('');
+                if (videos.length === 0) return 'Vui lòng chọn ít nhất 1 video minh chứng.';
+                if (videos.length > limits.maxVideos) return `Tối đa ${limits.maxVideos} video.`;
+                if (images.length > limits.maxImages) return `Tối đa ${limits.maxImages} ảnh.`;
+                const bigVideo = videos.find(f => f.size > limits.maxVideoBytes);
+                if (bigVideo) return `Video ${bigVideo.name} vượt quá ${mb(limits.maxVideoBytes)}.`;
+                const bigImage = images.find(f => f.size > limits.maxImageBytes);
+                if (bigImage) return `Ảnh ${bigImage.name} vượt quá ${mb(limits.maxImageBytes)}.`;
+                return null;
+            }
+
+            fileInput.addEventListener('change', () => { const error = checkFiles(); errorBox.hidden = !error; errorBox.textContent = error || ''; });
+
+            document.getElementById('claim-form').addEventListener('submit', function (event) {
+                event.preventDefault();
+                const error = checkFiles();
+                errorBox.hidden = !error; errorBox.textContent = error || '';
+                if (error) return;
+
+                const button = document.getElementById('claim-submit');
+                const progress = document.getElementById('upload-progress');
+                const bar = progress.querySelector('.progress-bar');
+                button.disabled = true; progress.hidden = false;
+
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', this.action);
+                xhr.upload.addEventListener('progress', e => {
+                    if (!e.lengthComputable) return;
+                    const percent = Math.round(e.loaded * 100 / e.total);
+                    bar.style.width = percent + '%'; bar.textContent = percent < 100 ? percent + '%' : 'Đang xử lý...';
+                });
+                xhr.onload = () => {
+                    // Success redirects to the claim page; a validation error returns this form with messages.
+                    if (xhr.responseURL && xhr.responseURL.includes('/Claims/Details/')) { window.location.href = xhr.responseURL; return; }
+                    document.open(); document.write(xhr.responseText); document.close();
+                };
+                xhr.onerror = () => { button.disabled = false; progress.hidden = true; errorBox.hidden = false; errorBox.textContent = 'Mất kết nối khi tải lên. Vui lòng thử lại.'; };
+                xhr.send(new FormData(this));
+            });
+        })();
+    </script>
+}

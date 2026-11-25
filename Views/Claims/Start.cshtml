@@ -1,0 +1,131 @@
+@model PopPop.Models.ClaimStartViewModel
+@using PopPop.Services.Implementations
+@{
+    ViewData["Title"] = "Tạo yêu cầu bảo hành";
+}
+<section class="section_gap">
+    <div class="container" style="max-width:1000px">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+            <h2 class="mb-0">Tạo yêu cầu bảo hành / đổi hàng</h2>
+            <a asp-controller="Claims" asp-action="Index" class="btn btn-link">Yêu cầu của tôi</a>
+        </div>
+        <p class="text-muted">
+            <strong>Bước 1:</strong> chọn sản phẩm cần bảo hành trong các đơn đã giao thành công.
+            <strong>Bước 2:</strong> mô tả nguyên nhân/tình trạng lỗi và tải lên <strong>video minh chứng</strong>.
+        </p>
+        <div class="alert alert-info">
+            Chính sách: cửa hàng <strong>không hoàn tiền</strong> và không đổi vì không vừa ý. Yêu cầu hợp lệ được
+            <strong>đổi sản phẩm mới</strong> (hoặc hãng thay thế khi bảo hành); yêu cầu không đúng chính sách sẽ bị từ chối kèm lý do.
+        </div>
+
+        <form asp-controller="Claims" asp-action="Start" method="get" class="d-flex mb-4" style="gap:8px">
+            <input type="search" name="search" value="@Model.Search" class="form-control"
+                   placeholder="Tìm theo mã đơn (PP-...) hoặc tên sản phẩm" aria-label="Tìm đơn hàng" />
+            <button type="submit" class="primary-btn" style="white-space:nowrap">Tìm</button>
+            @if (!string.IsNullOrEmpty(Model.Search))
+            {
+                <a asp-controller="Claims" asp-action="Start" class="btn btn-link" style="white-space:nowrap">Xóa lọc</a>
+            }
+        </form>
+
+        @if (Model.UndeliveredOrderCount > 0)
+        {
+            <p class="text-muted small">
+                Bạn có @Model.UndeliveredOrderCount đơn hàng đang xử lý/giao. Đơn sẽ hiện ở đây sau khi giao thành công.
+                <a asp-controller="Orders" asp-action="Index">Xem đơn hàng</a>
+            </p>
+        }
+
+        @if (Model.Orders.Count == 0)
+        {
+            <div class="alert alert-secondary">
+                @if (string.IsNullOrEmpty(Model.Search))
+                {
+                    <text>Bạn chưa có đơn hàng nào đã giao thành công nên chưa thể tạo yêu cầu bảo hành.</text>
+                }
+                else
+                {
+                    <text>Không tìm thấy đơn hàng đã giao nào khớp với "<strong>@Model.Search</strong>".</text>
+                }
+            </div>
+        }
+
+        @foreach (var order in Model.Orders)
+        {
+            <div class="card mb-4">
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center" style="gap:8px">
+                    <div>
+                        <strong>Đơn @order.OrderCode</strong>
+                        <span class="badge badge-success ml-2">Đã giao</span><br />
+                        <small class="text-muted">
+                            Đặt ngày @ShopClock.ToLocal(order.CreatedAt).ToString("dd/MM/yyyy") ·
+                            Giao ngày @ShopClock.ToLocal(order.DeliveredAt).ToString("dd/MM/yyyy")
+                        </small>
+                    </div>
+                    <div class="text-right">
+                        <strong>@order.TotalAmount.ToString("N0") ₫</strong><br />
+                        <a asp-controller="Orders" asp-action="Details" asp-route-id="@order.OrderId" class="small">Chi tiết đơn</a>
+                    </div>
+                </div>
+                <div class="card-body pb-0">
+                    @if (!string.IsNullOrEmpty(order.ShippingAddress))
+                    {
+                        <p class="small text-muted mb-3">
+                            Người nhận: <strong>@order.RecipientName</strong> · @order.RecipientPhone · @order.ShippingAddress
+                        </p>
+                    }
+                    @foreach (var item in order.Items)
+                    {
+                        <div class="d-flex flex-wrap align-items-center border-top py-3" style="gap:14px">
+                            <img src="@Url.Content(item.ImageUrl ?? "~/img/logo.png")" alt="" width="64" height="64" style="object-fit:contain;mix-blend-mode:multiply" />
+                            <div class="flex-grow-1" style="min-width:220px">
+                                <strong>@item.ProductName</strong><br />
+                                <small class="text-muted">@item.SKU · @item.BrandName · @item.CategoryName</small><br />
+                                <small>SL: @item.Quantity × @item.UnitPrice.ToString("N0") ₫</small><br />
+                                <small>
+                                    Báo lỗi khi nhận:
+                                    @if (item.ReceiptWindowOpen)
+                                    {
+                                        <span class="text-success">đến @ShopClock.ToLocal(item.ReceiptDeadline).ToString("dd/MM/yyyy")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">đã hết hạn</span>
+                                    }
+                                    · Bảo hành hãng:
+                                    @if (item.WarrantyDays == 0)
+                                    {
+                                        <span class="text-muted">không áp dụng</span>
+                                    }
+                                    else if (item.WarrantyWindowOpen)
+                                    {
+                                        <span class="text-success">đến @ShopClock.ToLocal(item.WarrantyDeadline!.Value).ToString("dd/MM/yyyy")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">đã hết hạn</span>
+                                    }
+                                </small>
+                            </div>
+                            <div>
+                                @if (item.OpenClaimCode is not null)
+                                {
+                                    <span class="small text-warning">Đang có yêu cầu @item.OpenClaimCode</span>
+                                }
+                                else if (item.CanClaim)
+                                {
+                                    <a asp-controller="Claims" asp-action="Create" asp-route-orderId="@order.OrderId" asp-route-orderItemId="@item.OrderItemId"
+                                       class="primary-btn" style="white-space:nowrap">Chọn sản phẩm này</a>
+                                }
+                                else
+                                {
+                                    <span class="small text-muted">Hết hạn bảo hành / đổi hàng</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</section>
