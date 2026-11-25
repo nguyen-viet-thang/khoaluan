@@ -1,10 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
-using System;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -14,37 +8,60 @@ using PopPop.Data.Entities;
 
 namespace PopPop.Areas.Identity.Pages.Account;
 
+/// <summary>Target of the link in the verification email. Does not sign the user in: they log in with their password.</summary>
+[AllowAnonymous]
 public class ConfirmEmailModel : PageModel
 {
     private readonly UserManager<User> _userManager;
+    private readonly ILogger<ConfirmEmailModel> _logger;
 
-    public ConfirmEmailModel(UserManager<User> userManager)
+    public ConfirmEmailModel(UserManager<User> userManager, ILogger<ConfirmEmailModel> logger)
     {
         _userManager = userManager;
+        _logger = logger;
     }
 
-    /// <summary>
-    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-    ///     directly from your code. This API may change or be removed in future releases.
-    /// </summary>
-    [TempData]
-    public string? StatusMessage { get; set; }
-    public async Task<IActionResult> OnGetAsync(string userId, string code)
+    public bool Succeeded { get; private set; }
+    public bool AlreadyConfirmed { get; private set; }
+    public string? Email { get; private set; }
+
+    public async Task<IActionResult> OnGetAsync(string? userId, string? code)
     {
-        if (userId == null || code == null)
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(code))
         {
-            return RedirectToPage("/Index");
+            return RedirectToPage("./Login");
         }
 
         var user = await _userManager.FindByIdAsync(userId);
-        if (user == null)
+        if (user is null || string.IsNullOrEmpty(user.Email))
         {
-            return NotFound($"Unable to load user with ID '{userId}'.");
+            return Page();
         }
 
-        code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code));
-        var result = await _userManager.ConfirmEmailAsync(user, code);
-        StatusMessage = result.Succeeded ? "Email đã được xác nhận." : "Lỗi: Không thể xác nhận email. Vui lòng thử lại.";
+        Email = user.Email;
+        if (user.EmailConfirmed)
+        {
+            AlreadyConfirmed = Succeeded = true;
+            return Page();
+        }
+
+        string token;
+        try
+        {
+            token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code));
+        }
+        catch (FormatException)
+        {
+            return Page();
+        }
+
+        var result = await _userManager.ConfirmEmailAsync(user, token);
+        Succeeded = result.Succeeded;
+        if (Succeeded)
+        {
+            _logger.LogInformation("User {UserId} confirmed their email.", user.Id);
+        }
+
         return Page();
     }
 }

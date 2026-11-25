@@ -1,22 +1,28 @@
 @page
 @model ResendEmailConfirmationModel
 @{
-    ViewData["Title"] = "Gửi lại email xác nhận";
+    Layout = "_IdentityLayout";
+    ViewData["Title"] = "Gửi lại email xác thực";
 }
 
-<h1>@ViewData["Title"]</h1>
-<h2>Nhập địa chỉ email đã đăng ký</h2>
-<hr />
 <div class="row">
+    <div class="col-12">
         <form method="post">
-            <div asp-validation-summary="All" class="text-danger" role="alert"></div>
+            <h1>@ViewData["Title"]</h1>
+            <hr />
+            <p class="text-muted">Nhập email bạn đã dùng để đăng ký, chúng tôi sẽ gửi lại liên kết xác thực.</p>
+            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
             <div class="form-floating mb-3">
-                <input asp-for="Input.Email" class="form-control" aria-required="true" placeholder="ten@email.com" />
-                <label asp-for="Input.Email" class="form-label">Địa chỉ email</label>
+                <input asp-for="Input.Email" class="form-control" type="email" inputmode="email" autocomplete="email" aria-required="true" placeholder="ban@example.com" />
+                <label asp-for="Input.Email">Email</label>
                 <span asp-validation-for="Input.Email" class="text-danger"></span>
             </div>
-            <button type="submit" class="w-100 btn btn-lg btn-primary">Gửi lại email</button>
+            <button type="submit" class="w-100 btn btn-lg btn-primary">Gửi lại</button>
+            <div class="identity-account-links">
+                <p><a asp-page="./Login">Quay lại đăng nhập</a></p>
+            </div>
         </form>
+    </div>
 </div>
 
 @section Scripts {

@@ -1,23 +1,42 @@
 @page
 @model RegisterConfirmationModel
 @{
-    ViewData["Title"] = "Xác nhận đăng ký";
+    Layout = "_IdentityLayout";
+    ViewData["Title"] = "Xác thực email";
 }
 
-<h1>@ViewData["Title"]</h1>
-@{
-    if (@Model.DisplayConfirmAccountLink)
-    {
-<p>
-    Hệ thống chưa cấu hình dịch vụ gửi email. Xem <a href="https://aka.ms/aspaccountconf">hướng dẫn cấu hình</a> để thiết lập.
-    Liên kết xác nhận tài khoản: <a id="confirm-link" href="@Model.EmailConfirmationUrl">Xác nhận tài khoản</a>
-</p>
-    }
-    else
-    {
-<p>
-        Vui lòng kiểm tra email @Model.Email để xác nhận tài khoản.
-</p>
-    }
-}
+<div class="row">
+    <div class="col-12">
+        <h1>@ViewData["Title"]</h1>
+        <hr />
+        @if (Model.Delivered)
+        {
+            <p>
+                Chúng tôi đã gửi email xác thực tới
+                <strong>@(string.IsNullOrEmpty(Model.Email) ? "địa chỉ email của bạn" : Model.Email)</strong>.
+                Vui lòng mở email và bấm <strong>"Xác thực email"</strong> để kích hoạt tài khoản, sau đó đăng nhập.
+            </p>
+            <p class="text-muted">Không thấy email? Hãy kiểm tra thư mục Spam/Quảng cáo. Liên kết có hiệu lực trong 24 giờ.</p>
+        }
+        else
+        {
+            <div class="alert alert-warning" role="alert">
+                Tài khoản đã được tạo nhưng hiện chưa gửi được email xác thực. Vui lòng thử
+                <a asp-page="./ResendEmailConfirmation" asp-route-email="@Model.Email">gửi lại email xác thực</a> sau ít phút.
+            </div>
+        }
 
+        @if (Model.DevConfirmationUrl is not null)
+        {
+            <div class="alert alert-info" role="alert">
+                <strong>Môi trường phát triển:</strong> chưa cấu hình SMTP nên email không được gửi thật.
+                <a href="@Model.DevConfirmationUrl">Bấm vào đây để xác thực email</a>.
+            </div>
+        }
+
+        <div class="identity-account-links">
+            <p><a asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Đến trang đăng nhập</a></p>
+            <p><a asp-page="./ResendEmailConfirmation" asp-route-email="@Model.Email">Gửi lại email xác thực</a></p>
+        </div>
+    </div>
+</div>

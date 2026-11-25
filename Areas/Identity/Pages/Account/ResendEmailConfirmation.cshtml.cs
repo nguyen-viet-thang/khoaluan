@@ -1,58 +1,39 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
-using System;
 using System.ComponentModel.DataAnnotations;
-using System.Text;
-using System.Text.Encodings.Web;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.WebUtilities;
 using PopPop.Data.Entities;
+using PopPop.Services.Interfaces;
 
 namespace PopPop.Areas.Identity.Pages.Account;
 
+/// <summary>Sends a new verification link. The answer is the same whether or not the email exists.</summary>
 [AllowAnonymous]
 public class ResendEmailConfirmationModel : PageModel
 {
     private readonly UserManager<User> _userManager;
-    private readonly IEmailSender _emailSender;
+    private readonly IAccountEmailService _accountEmailService;
+    private readonly IWebHostEnvironment _environment;
 
-    public ResendEmailConfirmationModel(UserManager<User> userManager, IEmailSender emailSender)
+    public ResendEmailConfirmationModel(UserManager<User> userManager, IAccountEmailService accountEmailService, IWebHostEnvironment environment)
     {
         _userManager = userManager;
-        _emailSender = emailSender;
+        _accountEmailService = accountEmailService;
+        _environment = environment;
     }
 
-    /// <summary>
-    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-    ///     directly from your code. This API may change or be removed in future releases.
-    /// </summary>
     [BindProperty]
-    public InputModel Input { get; set; } = default!;
+    public InputModel Input { get; set; } = new();
 
-    /// <summary>
-    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-    ///     directly from your code. This API may change or be removed in future releases.
-    /// </summary>
     public class InputModel
     {
-        /// <summary>
-        ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-        ///     directly from your code. This API may change or be removed in future releases.
-        /// </summary>
-        [Required(ErrorMessage = "Địa chỉ email không được để trống.")]
-        [EmailAddress(ErrorMessage = "Địa chỉ email không hợp lệ.")]
-        public string Email { get; set; } = default!;
+        [Required(ErrorMessage = "Vui lòng nhập email.")]
+        [RegularExpression(EmailConfirmationLink.EmailAddressPattern, ErrorMessage = "Email không hợp lệ.")]
+        public string Email { get; set; } = string.Empty;
     }
 
-    public void OnGet()
-    {
-    }
+    public void OnGet(string? email = null) => Input.Email = email ?? string.Empty;
 
     public async Task<IActionResult> OnPostAsync()
     {
@@ -61,27 +42,20 @@ public class ResendEmailConfirmationModel : PageModel
             return Page();
         }
 
-        var user = await _userManager.FindByEmailAsync(Input.Email);
-        if (user == null)
+        var email = EmailConfirmationLink.Normalize(Input.Email);
+        var user = await _userManager.FindByEmailAsync(email);
+        var delivered = true;
+        if (user is not null && !user.EmailConfirmed)
         {
-            ModelState.AddModelError(string.Empty, "Đã gửi email xác nhận. Vui lòng kiểm tra hộp thư.");
-            return Page();
+            string url;
+            (delivered, url) = await EmailConfirmationLink.SendAsync(this, _userManager, _accountEmailService, user);
+            if (!delivered && _environment.IsDevelopment())
+            {
+                TempData["DevConfirmationUrl"] = url;
+            }
         }
 
-        var userId = await _userManager.GetUserIdAsync(user);
-        var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-        var callbackUrl = Url.Page(
-            "/Account/ConfirmEmail",
-            pageHandler: null,
-            values: new { userId = userId, code = code },
-            protocol: Request.Scheme)!;
-        await _emailSender.SendEmailAsync(
-            Input.Email,
-            "Xác nhận địa chỉ email của bạn",
-            $"Vui lòng xác nhận địa chỉ email để hoàn tất thiết lập tài khoản PôpPôp.<p style='margin:24px 0 0;'><a href='{HtmlEncoder.Default.Encode(callbackUrl)}' style='display:inline-block;padding:12px 22px;background-color:#2563eb;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:700;'>Xác nhận email</a></p>");
-
-        ModelState.AddModelError(string.Empty, "Đã gửi email xác nhận. Vui lòng kiểm tra hộp thư.");
-        return Page();
+        TempData["ConfirmationEmailDelivered"] = delivered;
+        return RedirectToPage("./RegisterConfirmation", new { email });
     }
 }

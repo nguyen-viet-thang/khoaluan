@@ -154,8 +154,9 @@ public class EnableAuthenticatorModel : PageModel
 
         SharedKey = FormatKey(unformattedKey!);
 
-        var email = await _userManager.GetEmailAsync(user);
-        AuthenticatorUri = GenerateQrCodeUri(email!, unformattedKey!);
+        // Accounts have no email: label the authenticator entry with the phone number (user name).
+        var userName = await _userManager.GetUserNameAsync(user);
+        AuthenticatorUri = GenerateQrCodeUri(userName!, unformattedKey!);
     }
 
     private string FormatKey(string unformattedKey)
@@ -175,13 +176,13 @@ public class EnableAuthenticatorModel : PageModel
         return result.ToString().ToLowerInvariant();
     }
 
-    private string GenerateQrCodeUri(string email, string unformattedKey)
+    private string GenerateQrCodeUri(string accountLabel, string unformattedKey)
     {
         return string.Format(
             CultureInfo.InvariantCulture,
             AuthenticatorUriFormat,
-            _urlEncoder.Encode("Microsoft.AspNetCore.Identity.UI"),
-            _urlEncoder.Encode(email),
+            _urlEncoder.Encode("PopPop"),
+            _urlEncoder.Encode(accountLabel),
             unformattedKey);
     }
 }

@@ -1,118 +1,122 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
-
-using System;
 using System.ComponentModel.DataAnnotations;
-using System.Text.Encodings.Web;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using PopPop.Data.Entities;
+using PopPop.Services.Implementations;
 
 namespace PopPop.Areas.Identity.Pages.Account.Manage;
 
+/// <summary>
+/// Profile: full name and phone number. Email accounts sign in with their (verified) email, so the phone is just
+/// contact info (optional); for phone accounts the phone number is also the login and both change together.
+/// </summary>
 public class IndexModel : PageModel
 {
     private readonly UserManager<User> _userManager;
     private readonly SignInManager<User> _signInManager;
 
-    public IndexModel(
-        UserManager<User> userManager,
-        SignInManager<User> signInManager)
+    public IndexModel(UserManager<User> userManager, SignInManager<User> signInManager)
     {
         _userManager = userManager;
         _signInManager = signInManager;
     }
 
-    /// <summary>
-    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-    ///     directly from your code. This API may change or be removed in future releases.
-    /// </summary>
-    public string? Username { get; set; }
-
-    /// <summary>
-    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-    ///     directly from your code. This API may change or be removed in future releases.
-    /// </summary>
     [TempData]
     public string? StatusMessage { get; set; }
 
-    /// <summary>
-    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-    ///     directly from your code. This API may change or be removed in future releases.
-    /// </summary>
     [BindProperty]
     public InputModel Input { get; set; } = default!;
 
-    /// <summary>
-    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-    ///     directly from your code. This API may change or be removed in future releases.
-    /// </summary>
     public class InputModel
     {
-        /// <summary>
-        ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-        ///     directly from your code. This API may change or be removed in future releases.
-        /// </summary>
-        [Phone(ErrorMessage = "Số điện thoại không hợp lệ.")]
-        [Display(Name = "Phone number")]
+        [Required(ErrorMessage = "Vui lòng nhập họ và tên.")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "Họ và tên cần từ {2} đến {1} ký tự.")]
+        public string FullName { get; set; } = string.Empty;
+
         public string? PhoneNumber { get; set; }
     }
 
-    private async Task LoadAsync(User user)
+    /// <summary>Login email (null for phone-number accounts).</summary>
+    public string? Email { get; private set; }
+
+    private static bool IsEmailAccount(User user) => !string.IsNullOrEmpty(user.Email);
+
+    private void Load(User user)
     {
-        var userName = await _userManager.GetUserNameAsync(user);
-        var phoneNumber = await _userManager.GetPhoneNumberAsync(user);
-
-        Username = userName;
-
+        Email = user.Email;
         Input = new InputModel
         {
-            PhoneNumber = phoneNumber
+            FullName = user.FullName ?? string.Empty,
+            PhoneNumber = IsEmailAccount(user) ? user.PhoneNumber : user.PhoneNumber ?? user.UserName
         };
     }
 
     public async Task<IActionResult> OnGetAsync()
     {
         var user = await _userManager.GetUserAsync(User);
-        if (user == null)
+        if (user is null)
         {
-            return NotFound($"Unable to load user with ID '{_userManager.GetUserId(User)}'.");
+            return NotFound();
         }
 
-        await LoadAsync(user);
+        Load(user);
         return Page();
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
         var user = await _userManager.GetUserAsync(User);
-        if (user == null)
+        if (user is null)
         {
-            return NotFound($"Unable to load user with ID '{_userManager.GetUserId(User)}'.");
+            return NotFound();
+        }
+
+        Email = user.Email;
+        var emailAccount = IsEmailAccount(user);
+        var phone = string.IsNullOrWhiteSpace(Input.PhoneNumber) ? null : PhoneNumberFormatter.Normalize(Input.PhoneNumber);
+        if (phone is null && !emailAccount)
+        {
+            ModelState.AddModelError("Input.PhoneNumber", "Vui lòng nhập số điện thoại.");
+        }
+        else if (phone is not null && !PhoneNumberFormatter.IsValid(phone))
+        {
+            ModelState.AddModelError("Input.PhoneNumber", PhoneNumberFormatter.InvalidMessage);
         }
 
         if (!ModelState.IsValid)
         {
-            await LoadAsync(user);
             return Page();
         }
 
-        var phoneNumber = await _userManager.GetPhoneNumberAsync(user);
-        if (Input.PhoneNumber != phoneNumber)
+        if (!emailAccount && !string.Equals(phone, user.UserName, StringComparison.Ordinal))
         {
-            var setPhoneResult = await _userManager.SetPhoneNumberAsync(user, Input.PhoneNumber);
-            if (!setPhoneResult.Succeeded)
+            // Changing the login: SetUserNameAsync validates uniqueness (DuplicateUserName) before saving.
+            var renamed = await _userManager.SetUserNameAsync(user, phone);
+            if (!renamed.Succeeded)
             {
-                StatusMessage = "Lỗi: Không thể cập nhật số điện thoại. Vui lòng thử lại.";
-                return RedirectToPage();
+                foreach (var error in renamed.Errors)
+                {
+                    ModelState.AddModelError("Input.PhoneNumber", error.Description);
+                }
+
+                return Page();
             }
         }
 
+        user.PhoneNumber = phone;
+        user.FullName = Input.FullName.Trim();
+        var result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            StatusMessage = "Lỗi: Không thể cập nhật hồ sơ. Vui lòng thử lại.";
+            return RedirectToPage();
+        }
+
         await _signInManager.RefreshSignInAsync(user);
-        StatusMessage = "Đã cập nhật hồ sơ.";
+        StatusMessage = emailAccount
+            ? "Đã cập nhật hồ sơ."
+            : "Đã cập nhật hồ sơ. Từ lần sau, hãy đăng nhập bằng số điện thoại " + phone + ".";
         return RedirectToPage();
     }
 }

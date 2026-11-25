@@ -1,179 +1,120 @@
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-
-using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Text.Encodings.Web;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.Logging;
 using PopPop.Data.Entities;
+using PopPop.Services.Interfaces;
 
 namespace PopPop.Areas.Identity.Pages.Account;
 
+/// <summary>
+/// Customer sign-up: full name, email (= login) and password. A verification link is emailed; the account
+/// can only sign in once the email is confirmed.
+/// </summary>
+[AllowAnonymous]
 public class RegisterModel : PageModel
 {
-    private readonly SignInManager<User> _signInManager;
     private readonly UserManager<User> _userManager;
-    private readonly IUserStore<User> _userStore;
-    private readonly IUserEmailStore<User> _emailStore;
+    private readonly IAccountEmailService _accountEmailService;
+    private readonly IWebHostEnvironment _environment;
     private readonly ILogger<RegisterModel> _logger;
-    private readonly IEmailSender _emailSender;
 
     public RegisterModel(
         UserManager<User> userManager,
-        IUserStore<User> userStore,
-        SignInManager<User> signInManager,
-        ILogger<RegisterModel> logger,
-        IEmailSender emailSender)
+        IAccountEmailService accountEmailService,
+        IWebHostEnvironment environment,
+        ILogger<RegisterModel> logger)
     {
         _userManager = userManager;
-        _userStore = userStore;
-        _emailStore = GetEmailStore();
-        _signInManager = signInManager;
+        _accountEmailService = accountEmailService;
+        _environment = environment;
         _logger = logger;
-        _emailSender = emailSender;
     }
 
-    /// <summary>
-    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-    ///     directly from your code. This API may change or be removed in future releases.
-    /// </summary>
     [BindProperty]
     public InputModel Input { get; set; } = default!;
 
-    /// <summary>
-    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-    ///     directly from your code. This API may change or be removed in future releases.
-    /// </summary>
     public string? ReturnUrl { get; set; }
 
-    /// <summary>
-    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-    ///     directly from your code. This API may change or be removed in future releases.
-    /// </summary>
-    public IList<AuthenticationScheme>? ExternalLogins { get; set; }
-
-    /// <summary>
-    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-    ///     directly from your code. This API may change or be removed in future releases.
-    /// </summary>
     public class InputModel
     {
-        /// <summary>
-        ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-        ///     directly from your code. This API may change or be removed in future releases.
-        /// </summary>
-        [Required(ErrorMessage = "Địa chỉ email không được để trống.")]
-        [EmailAddress(ErrorMessage = "Địa chỉ email không hợp lệ.")]
+        [Required(ErrorMessage = "Vui lòng nhập họ và tên.")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "Họ và tên cần từ {2} đến {1} ký tự.")]
+        [Display(Name = "Họ và tên")]
+        public string FullName { get; set; } = default!;
+
+        [Required(ErrorMessage = "Vui lòng nhập email.")]
+        [StringLength(256, ErrorMessage = "Email tối đa {1} ký tự.")]
+        [RegularExpression(EmailConfirmationLink.EmailAddressPattern, ErrorMessage = "Email không hợp lệ.")]
         [Display(Name = "Email")]
         public string Email { get; set; } = default!;
 
-        /// <summary>
-        ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-        ///     directly from your code. This API may change or be removed in future releases.
-        /// </summary>
         [Required(ErrorMessage = "Mật khẩu không được để trống.")]
         [StringLength(100, ErrorMessage = "Mật khẩu phải có từ {2} đến {1} ký tự.", MinimumLength = 6)]
         [DataType(DataType.Password)]
-        [Display(Name = "Password")]
         public string Password { get; set; } = default!;
 
-        /// <summary>
-        ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-        ///     directly from your code. This API may change or be removed in future releases.
-        /// </summary>
         [DataType(DataType.Password)]
-        [Display(Name = "Confirm password")]
         [Compare("Password", ErrorMessage = "Mật khẩu xác nhận không khớp.")]
         public string? ConfirmPassword { get; set; }
     }
 
-
-    public async Task OnGetAsync(string? returnUrl = null)
-    {
-        ReturnUrl = returnUrl;
-        ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
-    }
+    public void OnGet(string? returnUrl = null) => ReturnUrl = returnUrl;
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
-        returnUrl ??= Url.Content("~/");
-        ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
-        if (ModelState.IsValid)
+        ReturnUrl = returnUrl;
+        if (!ModelState.IsValid)
         {
-            var user = CreateUser();
+            return Page();
+        }
 
-            await _userStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
-            await _emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
-            var result = await _userManager.CreateAsync(user, Input.Password);
+        var email = EmailConfirmationLink.Normalize(Input.Email);
+        var existing = await _userManager.FindByNameAsync(email) ?? await _userManager.FindByEmailAsync(email);
+        if (existing is not null)
+        {
+            ModelState.AddModelError("Input.Email", existing.EmailConfirmed || string.IsNullOrEmpty(existing.Email)
+                ? "Email này đã được đăng ký. Vui lòng đăng nhập."
+                : "Email này đã đăng ký nhưng chưa xác thực. Hãy kiểm tra hộp thư hoặc dùng \"Gửi lại email xác thực\".");
+            return Page();
+        }
 
-            if (result.Succeeded)
-            {
-                _logger.LogInformation("User created a new account with password.");
+        var user = new User
+        {
+            UserName = email,
+            Email = email,
+            EmailConfirmed = false,
+            FullName = Input.FullName.Trim(),
+            CreatedAt = DateTime.UtcNow
+        };
 
-                var userId = await _userManager.GetUserIdAsync(user);
-                var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-                var callbackUrl = Url.Page(
-                    "/Account/ConfirmEmail",
-                    pageHandler: null,
-                    values: new { area = "Identity", userId = userId, code = code, returnUrl = returnUrl },
-                    protocol: Request.Scheme)!;
-
-                await _emailSender.SendEmailAsync(Input.Email, "Xác nhận địa chỉ email của bạn",
-                    $"Cảm ơn bạn đã đăng ký tài khoản PôpPôp. Vui lòng xác nhận địa chỉ email để hoàn tất đăng ký.<p style='margin:24px 0 0;'><a href='{HtmlEncoder.Default.Encode(callbackUrl)}' style='display:inline-block;padding:12px 22px;background-color:#2563eb;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:700;'>Xác nhận email</a></p>");
-
-                if (_userManager.Options.SignIn.RequireConfirmedAccount)
-                {
-                    return RedirectToPage("RegisterConfirmation", new { email = Input.Email, returnUrl = returnUrl });
-                }
-                else
-                {
-                    await _signInManager.SignInAsync(user, isPersistent: false);
-                    return LocalRedirect(returnUrl);
-                }
-            }
+        var result = await _userManager.CreateAsync(user, Input.Password);
+        if (!result.Succeeded)
+        {
             foreach (var error in result.Errors)
             {
-                ModelState.AddModelError(string.Empty, error.Description);
+                // Duplicate / invalid user name is really about the email field.
+                var key = error.Code is nameof(IdentityErrorDescriber.DuplicateUserName) or nameof(IdentityErrorDescriber.InvalidUserName)
+                    ? "Input.Email"
+                    : string.Empty;
+                ModelState.AddModelError(key, error.Description);
             }
+
+            return Page();
         }
 
-        // If we got this far, something failed, redisplay form
-        return Page();
-    }
+        await _userManager.AddToRoleAsync(user, "Customer");
+        _logger.LogInformation("Customer {UserId} registered with an email; verification pending.", user.Id);
 
-    private User CreateUser()
-    {
-        try
+        var (delivered, url) = await EmailConfirmationLink.SendAsync(this, _userManager, _accountEmailService, user);
+        if (!delivered && _environment.IsDevelopment())
         {
-            return Activator.CreateInstance<User>();
+            // No SMTP in development: show the link on the confirmation page so the flow can be tested.
+            TempData["DevConfirmationUrl"] = url;
         }
-        catch
-        {
-            throw new InvalidOperationException($"Can't create an instance of '{nameof(Data.Entities.User)}'. " +
-                $"Ensure that '{nameof(Data.Entities.User)}' is not an abstract class and has a parameterless constructor, or alternatively " +
-                $"override the register page in /Areas/Identity/Pages/Account/Register.cshtml");
-        }
-    }
 
-    private IUserEmailStore<User> GetEmailStore()
-    {
-        if (!_userManager.SupportsUserEmail)
-        {
-            throw new NotSupportedException("The default UI requires a user store with email support.");
-        }
-        return (IUserEmailStore<User>)_userStore;
+        TempData["ConfirmationEmailDelivered"] = delivered;
+        return RedirectToPage("./RegisterConfirmation", new { email, returnUrl });
     }
 }

@@ -117,10 +117,24 @@ public class ChangePasswordModel : PageModel
             return Page();
         }
 
+        var wasForced = user.MustChangePassword;
+        if (wasForced)
+        {
+            // The admin-set temporary password has been replaced: lift the restriction.
+            user.MustChangePassword = false;
+            await _userManager.UpdateAsync(user);
+        }
+
+        // Re-issues the cookie without the "must change password" claim.
         await _signInManager.RefreshSignInAsync(user);
         _logger.LogInformation("User changed their password successfully.");
-        StatusMessage = "Đã đổi mật khẩu.";
+        if (wasForced)
+        {
+            return LocalRedirect(await _userManager.IsInRoleAsync(user, "Admin") ? "/Admin"
+                : await _userManager.IsInRoleAsync(user, "Staff") ? "/Staff" : "/");
+        }
 
+        StatusMessage = "Đã đổi mật khẩu.";
         return RedirectToPage();
     }
 }

@@ -12,8 +12,13 @@
             <hr />
             <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
             <div class="form-floating mb-3">
-                <input asp-for="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="ten@email.com" />
-                <label asp-for="Input.Email">Địa chỉ email</label>
+                <input asp-for="Input.FullName" class="form-control" autocomplete="name" aria-required="true" placeholder="Nguyễn Văn A" />
+                <label asp-for="Input.FullName">Họ và tên</label>
+                <span asp-validation-for="Input.FullName" class="text-danger"></span>
+            </div>
+            <div class="form-floating mb-3">
+                <input asp-for="Input.Email" class="form-control" type="email" inputmode="email" autocomplete="username" aria-required="true" placeholder="ban@example.com" />
+                <label asp-for="Input.Email">Email (dùng để đăng nhập)</label>
                 <span asp-validation-for="Input.Email" class="text-danger"></span>
             </div>
             <div class="form-floating mb-3">
@@ -33,27 +38,12 @@
                     <a asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl"> Đăng nhập.</a>
                 </p>
                 <p>
-                    <a id="resend-confirmation" asp-page="./ResendEmailConfirmation">Gửi lại email xác nhận.</a>
+                    Chưa nhận được email xác thực?
+                    <a asp-page="./ResendEmailConfirmation">Gửi lại email xác thực.</a>
                 </p>
             </div>
         </form>
     </div>
-    @if ((Model.ExternalLogins?.Count ?? 0) > 0)
-    {
-        <div class="col-12">
-            <section class="identity-provider-section">
-                <h2>Hoặc đăng ký với</h2>
-                <form id="external-account" asp-page="./ExternalLogin" asp-route-returnUrl="@Model.ReturnUrl" method="post" class="identity-provider-list">
-                    <div class="identity-provider-buttons">
-                        @foreach (var provider in Model.ExternalLogins!)
-                        {
-                            <button type="submit" class="btn btn-outline-secondary identity-provider-button" name="provider" value="@provider.Name" title="Đăng ký với @provider.DisplayName">@provider.DisplayName</button>
-                        }
-                    </div>
-                </form>
-            </section>
-        </div>
-    }
 </div>
 
 @section Scripts {

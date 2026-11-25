@@ -1,8 +1,34 @@
 @page
 @model ConfirmEmailModel
 @{
-    ViewData["Title"] = "Xác nhận email";
+    Layout = "_IdentityLayout";
+    ViewData["Title"] = "Xác thực email";
 }
 
-<h1>@ViewData["Title"]</h1>
-<partial name="_StatusMessage" model="Model.StatusMessage" />
+<div class="row">
+    <div class="col-12">
+        <h1>@ViewData["Title"]</h1>
+        <hr />
+        @if (Model.Succeeded)
+        {
+            <div class="alert alert-success" role="alert">
+                @if (Model.AlreadyConfirmed)
+                {
+                    <text>Email <strong>@Model.Email</strong> đã được xác thực trước đó.</text>
+                }
+                else
+                {
+                    <text>Xác thực thành công! Tài khoản <strong>@Model.Email</strong> đã được kích hoạt.</text>
+                }
+            </div>
+            <a class="w-100 btn btn-lg btn-primary" asp-page="./Login">Đăng nhập ngay</a>
+        }
+        else
+        {
+            <div class="alert alert-danger" role="alert">
+                Liên kết xác thực không hợp lệ hoặc đã hết hạn (liên kết chỉ có hiệu lực 24 giờ).
+            </div>
+            <a class="w-100 btn btn-lg btn-primary" asp-page="./ResendEmailConfirmation" asp-route-email="@Model.Email">Gửi lại email xác thực</a>
+        }
+    </div>
+</div>

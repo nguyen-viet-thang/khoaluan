@@ -3,16 +3,12 @@
 @inject SignInManager<User> SignInManager
 @inject UserManager<User> UserManager
 
-@{
-    var unreadChatCount = ViewData["UnreadChatCount"] is int count ? count : 0;
-}
-
 @if (SignInManager.IsSignedIn(User))
 {
     var currentUser = await UserManager.GetUserAsync(User);
     <li class="nav-item dropdown store-header__account">
         <button class="store-header__icon store-header__avatar dropdown-toggle" type="button" data-toggle="dropdown"
-                aria-haspopup="true" aria-expanded="false" aria-label="Menu tài khoản, @unreadChatCount tin nhắn chưa đọc">
+                aria-haspopup="true" aria-expanded="false" aria-label="Menu tài khoản">
             @if (!string.IsNullOrWhiteSpace(currentUser?.AvatarPath))
             {
                 <img src="@Url.Content(currentUser.AvatarPath)" alt="Ảnh đại diện">
@@ -21,24 +17,20 @@
             {
                 <i class="fa fa-user-circle" aria-hidden="true"></i>
             }
-            @if (unreadChatCount > 0)
-            {
-                <span class="store-header__badge" aria-hidden="true">@(unreadChatCount > 99 ? "99+" : unreadChatCount.ToString())</span>
-            }
         </button>
         <div class="dropdown-menu dropdown-menu-right store-header__account-menu">
             <div class="store-header__account-name">@(currentUser?.FullName ?? currentUser?.UserName ?? "Tài khoản")</div>
             <a class="dropdown-item" asp-area="Identity" asp-page="/Account/Manage/Index">
                 <i class="fa fa-user-o" aria-hidden="true"></i> Quản lý thông tin
             </a>
-            @if (!User.IsInRole("Admin") && !User.IsInRole("Staff"))
-            {
-                <a class="dropdown-item" href="#support-chat-widget" id="customer-chat-history-link">
-                    <i class="fa fa-comments-o" aria-hidden="true"></i> Lịch sử trò chuyện
-                </a>
-            }
             <a class="dropdown-item" asp-controller="Orders" asp-action="Index">
                 <i class="fa fa-list-alt" aria-hidden="true"></i> Quản lý đơn hàng
+            </a>
+            <a class="dropdown-item" asp-area="" asp-controller="Claims" asp-action="Index">
+                <i class="fa fa-wrench" aria-hidden="true"></i> Bảo hành &amp; đổi hàng
+            </a>
+            <a class="dropdown-item" asp-area="" asp-controller="Claims" asp-action="Start">
+                <i class="fa fa-plus-circle" aria-hidden="true"></i> Tạo yêu cầu bảo hành
             </a>
             <div class="dropdown-divider"></div>
             <form asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">
