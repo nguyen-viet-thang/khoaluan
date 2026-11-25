@@ -28,9 +28,8 @@ public sealed class AdminLoginModel : PageModel
 
     public sealed class InputModel
     {
-        [Required(ErrorMessage = "Địa chỉ email không được để trống.")]
-        [EmailAddress(ErrorMessage = "Địa chỉ email không hợp lệ.")]
-        public string Email { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Vui lòng nhập số điện thoại.")]
+        public string PhoneNumber { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Mật khẩu không được để trống.")]
         [DataType(DataType.Password)]
@@ -63,7 +62,8 @@ public sealed class AdminLoginModel : PageModel
             return Page();
         }
 
-        var user = await _userManager.FindByEmailAsync(Input.Email);
+        var phone = PopPop.Services.Implementations.PhoneNumberFormatter.Normalize(Input.PhoneNumber);
+        var user = phone is null ? null : await _userManager.FindByNameAsync(phone);
         if (user is null)
         {
             ModelState.AddModelError(string.Empty, "Thông tin đăng nhập không hợp lệ hoặc tài khoản không có quyền truy cập khu vực quản trị.");

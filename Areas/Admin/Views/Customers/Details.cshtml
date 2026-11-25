@@ -1,0 +1,148 @@
+@model PopPop.Models.CustomerDetailsViewModel
+@using PopPop.Data.Entities.Enums
+@{
+    var customer = Model.Customer;
+    var displayName = string.IsNullOrWhiteSpace(customer.FullName) ? customer.Login : customer.FullName;
+    var isEmailAccount = customer.Email is not null;
+    ViewData["Title"] = $"Khách hàng {displayName}";
+    string StatusClass(OrderStatus status) => status switch
+    {
+        OrderStatus.Pending => "status-pending",
+        OrderStatus.Confirmed => "status-confirmed",
+        OrderStatus.Processing => "status-processing",
+        OrderStatus.Shipping => "status-shipping",
+        OrderStatus.Completed => "status-completed",
+        OrderStatus.Cancelled => "status-cancelled",
+        _ => string.Empty
+    };
+}
+<div class="admin-page-heading">
+    <div><h2>@displayName</h2><p>Khách hàng từ @customer.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</p></div>
+    <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Customers" asp-action="Index"><i class="fa fa-arrow-left me-1"></i>Danh sách khách hàng</a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="admin-stat-card"><span class="admin-stat-icon"><i class="fa fa-shopping-bag"></i></span><div class="admin-stat-label">Tổng số đơn</div><div class="admin-stat-value">@customer.OrderCount</div><div class="admin-stat-note">@Model.OpenOrders đang xử lý · @Model.CancelledOrders đã hủy</div></div></div>
+    <div class="col-md-3"><div class="admin-stat-card"><span class="admin-stat-icon"><i class="fa fa-check"></i></span><div class="admin-stat-label">Đơn giao thành công</div><div class="admin-stat-value">@Model.CompletedOrders</div></div></div>
+    <div class="col-md-3"><div class="admin-stat-card"><span class="admin-stat-icon"><i class="fa fa-money"></i></span><div class="admin-stat-label">Đã chi tiêu</div><div class="admin-stat-value">@customer.TotalSpent.ToString("N0") ₫</div><div class="admin-stat-note">Tính trên đơn đã giao</div></div></div>
+    <div class="col-md-3"><div class="admin-stat-card"><span class="admin-stat-icon"><i class="fa fa-line-chart"></i></span><div class="admin-stat-label">Giá trị đơn trung bình</div><div class="admin-stat-value">@Model.AverageOrderValue.ToString("N0") ₫</div></div></div>
+</div>
+
+<div class="admin-order-grid mb-4">
+    <section class="admin-detail-card">
+        <h3>Thông tin tài khoản</h3>
+        <div class="admin-detail-row"><span>Họ và tên</span><strong>@(customer.FullName ?? "Chưa cập nhật")</strong></div>
+        @if (isEmailAccount)
+        {
+            <div class="admin-detail-row"><span>Email (đăng nhập)</span><strong>@customer.Email</strong></div>
+            <div class="admin-detail-row"><span>Xác thực email</span><span class="admin-status @(customer.EmailConfirmed ? "status-completed" : "status-pending")">@(customer.EmailConfirmed ? "Đã xác thực" : "Chưa xác thực")</span></div>
+            <div class="admin-detail-row"><span>Số điện thoại</span><span>@(customer.PhoneNumber ?? "Chưa cập nhật")</span></div>
+        }
+        else
+        {
+            <div class="admin-detail-row"><span>Số điện thoại (đăng nhập)</span><strong>@customer.PhoneNumber</strong></div>
+        }
+        <div class="admin-detail-row"><span>Ngày đăng ký</span><span>@customer.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></div>
+        <div class="admin-detail-row"><span>Mua gần nhất</span><span>@(customer.LastOrderAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "Chưa mua")</span></div>
+    </section>
+    <section class="admin-detail-card">
+        <h3>Giao hàng gần nhất</h3>
+        @if (Model.LastShippingAddress is null)
+        {
+            <p class="admin-stat-note">Khách hàng chưa có đơn hàng nào.</p>
+        }
+        else
+        {
+            <div class="admin-detail-row"><span>Số điện thoại nhận hàng</span><strong>@Model.LastRecipientPhone</strong></div>
+            <div class="admin-detail-row"><span>Địa chỉ</span><strong>@Model.LastShippingAddress</strong></div>
+        }
+    </section>
+</div>
+
+<section class="admin-detail-card mb-4 @(customer.IsLocked ? "admin-danger-zone" : string.Empty)">
+    <h3>Trạng thái tài khoản</h3>
+    @if (customer.IsLocked)
+    {
+        <p><span class="admin-status status-cancelled">Đã khóa</span></p>
+        <div class="admin-detail-row"><span>Lý do khóa</span><span>@(Model.LockReason ?? "Không ghi lý do")</span></div>
+        <form asp-area="Admin" asp-controller="Customers" asp-action="Unlock" asp-route-id="@customer.Id" method="post" class="mt-3">
+            <button type="submit" class="btn btn-success"><i class="fa fa-unlock me-2"></i>Mở khóa tài khoản</button>
+        </form>
+    }
+    else
+    {
+        <p class="admin-stat-note">Khóa tài khoản khi khách có dấu hiệu gian lận, đặt đơn ảo hoặc boom hàng nhiều lần. Khách bị khóa sẽ bị đăng xuất và không thể đăng nhập; lịch sử đơn hàng vẫn được giữ nguyên.</p>
+        <form asp-area="Admin" asp-controller="Customers" asp-action="Lock" asp-route-id="@customer.Id" method="post"
+              onsubmit="return confirm('Khóa tài khoản @customer.Login?');">
+            <label for="lock-reason" class="form-label">Lý do khóa</label>
+            <div class="admin-actions">
+                <input id="lock-reason" name="reason" class="form-control" maxlength="500" required style="max-width:520px"
+                       placeholder="VD: Nhiều lần từ chối nhận hàng COD" />
+                <button type="submit" class="btn btn-outline-danger"><i class="fa fa-lock me-2"></i>Khóa tài khoản</button>
+            </div>
+        </form>
+    }
+</section>
+
+<section class="admin-detail-card mb-4">
+    <h3>Đặt lại mật khẩu</h3>
+    @if (TempData["TemporaryPassword"] is string temporaryPassword)
+    {
+        <div class="alert alert-success" role="alert">
+            Mật khẩu tạm của <strong>@customer.Login</strong>: <code style="font-size:1.25rem">@temporaryPassword</code><br />
+            Hãy báo mật khẩu này cho khách (qua điện thoại hoặc trực tiếp). Mật khẩu chỉ hiển thị một lần; khách sẽ phải đổi mật khẩu ngay khi đăng nhập.
+        </div>
+    }
+    <p class="admin-stat-note">Dùng khi khách quên mật khẩu. Hệ thống tạo mật khẩu tạm, đăng xuất khách khỏi mọi thiết bị và bắt khách đặt mật khẩu mới ở lần đăng nhập kế tiếp.
+        Hãy xác minh đúng chủ tài khoản (gọi lại số điện thoại đăng ký) trước khi cấp.</p>
+    <form asp-area="Admin" asp-controller="Customers" asp-action="ResetPassword" asp-route-id="@customer.Id" method="post"
+          onsubmit="return confirm('Tạo mật khẩu tạm cho @customer.Login? Mật khẩu cũ sẽ không dùng được nữa.');">
+        <button type="submit" class="btn btn-outline-primary"><i class="fa fa-key me-2"></i>Tạo mật khẩu tạm</button>
+    </form>
+</section>
+
+<section class="admin-detail-card admin-danger-zone mb-4">
+    <h3>Xóa tài khoản</h3>
+    @if (Model.CanDelete)
+    {
+        <p class="admin-stat-note">Xóa vĩnh viễn tài khoản cùng giỏ hàng, tin nhắn hỗ trợ và thông báo của khách. Không thể hoàn tác.
+            Nhập lại @(isEmailAccount ? "email" : "số điện thoại") <strong>@customer.Login</strong> để xác nhận.</p>
+        <form asp-area="Admin" asp-controller="Customers" asp-action="Delete" asp-route-id="@customer.Id" method="post"
+              onsubmit="return confirm('Xóa vĩnh viễn tài khoản @customer.Login? Thao tác này không thể hoàn tác.');">
+            <div class="admin-actions">
+                <input name="confirmPhone" class="form-control" required autocomplete="off" inputmode="@(isEmailAccount ? "email" : "tel")" style="max-width:360px"
+                       placeholder="@customer.Login" aria-label="Nhập thông tin đăng nhập để xác nhận xóa" />
+                <button type="submit" class="btn btn-danger"><i class="fa fa-trash me-2"></i>Xóa tài khoản</button>
+            </div>
+        </form>
+    }
+    else
+    {
+        <p class="admin-stat-note mb-0">Không thể xóa: tài khoản có @Model.Orders.Count đơn hàng và @Model.ClaimCount yêu cầu bảo hành
+            cần lưu lại để đối soát doanh thu và bảo hành. Hãy dùng chức năng <strong>khóa tài khoản</strong> ở trên.</p>
+    }
+</section>
+
+<div class="admin-panel">
+    <div class="admin-panel-header"><h3>Lịch sử đơn hàng (@Model.Orders.Count)</h3></div>
+    @if (Model.Orders.Count == 0)
+    {
+        <div class="admin-empty">Khách hàng chưa đặt đơn nào.</div>
+    }
+    else
+    {
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Mã đơn</th><th>Ngày đặt</th><th>Số sản phẩm</th><th>Tổng tiền</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+        @foreach (var order in Model.Orders)
+        {
+            <tr>
+                <td><a class="admin-link" asp-area="Admin" asp-controller="Orders" asp-action="Details" asp-route-id="@order.Id">@order.OrderCode</a></td>
+                <td>@order.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                <td>@order.ItemCount</td>
+                <td>@order.TotalAmount.ToString("N0") ₫</td>
+                <td><span class="admin-status @StatusClass(order.Status)">@order.StatusText</span></td>
+                <td><a class="btn btn-sm btn-outline-primary" asp-area="Admin" asp-controller="Orders" asp-action="Details" asp-route-id="@order.Id">Xem đơn</a></td>
+            </tr>
+        }
+        </tbody></table></div>
+    }
+</div>

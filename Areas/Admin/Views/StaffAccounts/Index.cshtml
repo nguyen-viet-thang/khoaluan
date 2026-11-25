@@ -1,25 +1,63 @@
 @model PopPop.Models.StaffAccountListViewModel
+@using PopPop.Areas.Admin.Controllers
 @{
     ViewData["Title"] = "Tài khoản nhân viên";
 }
 <div class="admin-page-heading">
-    <div><h2>Tài khoản nhân viên</h2><p>Quản lý tài khoản có quyền xử lý đơn hàng.</p></div>
+    <div><h2>Tài khoản nhân viên</h2><p>Nhân viên xử lý đơn hàng và trả lời tin nhắn khách hàng. Đăng nhập tại /admin/login bằng số điện thoại.</p></div>
     <a class="btn btn-primary" asp-area="Admin" asp-controller="StaffAccounts" asp-action="Create"><i class="fa fa-user-plus me-2"></i>Tạo tài khoản nhân viên</a>
 </div>
+@if (TempData[StaffAccountsController.IssuedPasswordKey] is string issuedPassword)
+{
+    <div class="alert alert-success" role="alert">
+        Mật khẩu ban đầu: <code style="font-size:1.25rem">@issuedPassword</code> — hãy bàn giao trực tiếp cho nhân viên.
+        Mật khẩu chỉ hiển thị một lần; nhân viên phải đổi mật khẩu ở lần đăng nhập đầu tiên.
+    </div>
+}
+<form class="admin-toolbar" method="get">
+    <input class="form-control" type="search" name="search" value="@Model.Search" placeholder="Tên hoặc số điện thoại" aria-label="Tìm nhân viên" />
+    <select class="form-select" name="status" aria-label="Lọc theo trạng thái">
+        <option value="">Tất cả trạng thái</option>
+        <option value="active" selected="@(Model.Status == "active")">Đang hoạt động</option>
+        <option value="pending" selected="@(Model.Status == "pending")">Chưa đổi mật khẩu tạm</option>
+        <option value="locked" selected="@(Model.Status == "locked")">Đã khóa</option>
+    </select>
+    <button class="btn btn-primary" type="submit"><i class="fa fa-search me-1"></i>Lọc</button>
+    <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="StaffAccounts" asp-action="Index">Xóa lọc</a>
+</form>
 <div class="admin-panel">
     <div class="admin-panel-header"><h3>@Model.Accounts.Count tài khoản</h3></div>
     @if (Model.Accounts.Count == 0)
     {
-        <div class="admin-empty">Chưa có tài khoản nhân viên. Tạo tài khoản mới để gửi lời mời đặt mật khẩu.</div>
+        <div class="admin-empty">Không có tài khoản nhân viên phù hợp.</div>
     }
     else
     {
-        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Họ và tên</th><th>Email</th><th>Trạng thái</th></tr></thead><tbody>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Họ và tên</th><th>Số điện thoại (đăng nhập)</th><th>Ngày tạo</th><th>Trạng thái</th><th></th></tr></thead><tbody>
         @foreach (var account in Model.Accounts)
         {
-            <tr><td>@account.FullName</td><td>@account.Email</td><td><span class="admin-status @(account.HasPassword ? "status-completed" : "status-pending")">@(account.HasPassword ? "Đã kích hoạt" : "Chờ đặt mật khẩu")</span></td></tr>
+            <tr>
+                <td><a class="admin-link" asp-area="Admin" asp-controller="StaffAccounts" asp-action="Edit" asp-route-id="@account.Id">@account.FullName</a></td>
+                <td>@account.PhoneNumber</td>
+                <td>@account.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                <td>
+                    @if (account.IsLocked)
+                    {
+                        <span class="admin-status status-cancelled" title="@account.LockReason">Đã khóa</span>
+                    }
+                    else if (account.MustChangePassword)
+                    {
+                        <span class="admin-status status-pending">Chưa đổi mật khẩu tạm</span>
+                    }
+                    else
+                    {
+                        <span class="admin-status status-completed">Đang hoạt động</span>
+                    }
+                </td>
+                <td><a class="btn btn-sm btn-outline-primary" asp-area="Admin" asp-controller="StaffAccounts" asp-action="Edit" asp-route-id="@account.Id">Quản lý</a></td>
+            </tr>
         }
         </tbody></table></div>
     }
 </div>
-<div class="admin-detail-card mt-3"><strong>Lưu ý bảo mật</strong><p class="admin-stat-note mb-0">Nhân viên tự đặt mật khẩu qua liên kết gửi đến email. Quản trị viên không đặt hoặc xem được mật khẩu.</p></div>
+<div class="admin-detail-card mt-3"><strong>Lưu ý bảo mật</strong><p class="admin-stat-note mb-0">Mật khẩu ban đầu và mật khẩu tạm chỉ hiển thị một lần và phải được đổi ngay ở lần đăng nhập kế tiếp. Hệ thống không lưu hay hiển thị lại mật khẩu của nhân viên.</p></div>
