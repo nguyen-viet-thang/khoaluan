@@ -1,0 +1,53 @@
+@model PopPop.Models.SearchFiltersViewModel
+@* Chips for the header search panel. Inputs belong to #search-form, so Enter submits them to the catalog. *@
+
+<fieldset class="search-filter">
+    <legend>Loại sản phẩm</legend>
+    <div class="search-chips">
+        <label class="search-chip"><input type="radio" name="categoryId" value="" checked="@(Model.CategoryId is null)" /><span>Tất cả</span></label>
+        @foreach (var category in Model.Categories)
+        {
+            <label class="search-chip"><input type="radio" name="categoryId" value="@category.Id" checked="@(Model.CategoryId == category.Id)" /><span>@category.Name</span></label>
+        }
+    </div>
+    @if (Model.CategoryId is null)
+    {
+        <p class="search-filter__note">Chọn loại sản phẩm để lọc theo thông số (trọng lượng, điểm cân bằng, size...).</p>
+    }
+</fieldset>
+
+@if (Model.Brands.Count > 0)
+{
+    <fieldset class="search-filter">
+        <legend>Thương hiệu</legend>
+        <div class="search-chips">
+            <label class="search-chip"><input type="radio" name="brandId" value="" checked /><span>Tất cả</span></label>
+            @foreach (var brand in Model.Brands)
+            {
+                <label class="search-chip"><input type="radio" name="brandId" value="@brand.Id" /><span>@brand.Name</span></label>
+            }
+        </div>
+    </fieldset>
+}
+
+@foreach (var group in Model.Specs)
+{
+    <fieldset class="search-filter">
+        <legend>
+            @group.Name
+            @if (!string.IsNullOrWhiteSpace(group.Hint))
+            {
+                <span class="search-filter__hint">@group.Hint</span>
+            }
+        </legend>
+        <div class="search-chips">
+            @foreach (var option in group.Options)
+            {
+                <label class="search-chip" title="@option.Hint">
+                    <input type="checkbox" name="spec" value="@option.Id" />
+                    <span>@option.Value <small>(@option.ProductCount)</small></span>
+                </label>
+            }
+        </div>
+    </fieldset>
+}

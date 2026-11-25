@@ -1,4 +1,4 @@
-@model ProductCatalogViewModel
+﻿@model ProductCatalogViewModel
 @using System.Globalization
 
 @{
@@ -15,6 +15,16 @@
     {
         sliderMinValue = sliderMaxValue;
     }
+
+    var basePath = Url.Action("Index", "Products") ?? "/Products";
+    string Link(Action<CatalogQuery> change) => Model.Query(change).ToUrl(basePath);
+    var selectedOptions = Model.SpecFilters
+        .SelectMany(group => group.Options.Where(option => option.Selected).Select(option => (Group: group.Name, Option: option)))
+        .ToList();
+    var categoryName = Model.Categories.FirstOrDefault(category => category.Id == Model.CategoryId)?.Name;
+    var brandName = Model.Brands.FirstOrDefault(brand => brand.Id == Model.BrandId)?.Name;
+    var hasActiveFilters = categoryName is not null || brandName is not null || Model.Search is not null
+        || Model.MinPrice.HasValue || Model.MaxPrice.HasValue || selectedOptions.Count > 0;
 }
 
 <section class="banner-area organic-breadcrumb">
@@ -38,21 +48,68 @@
                 <div class="head">Danh mục sản phẩm</div>
                 <ul class="main-categories">
                     <li class="main-nav-list">
-                        <a asp-controller="Products" asp-action="Index" asp-route-q="@Model.Search"
-                           asp-route-minPrice="@Model.MinPrice" asp-route-maxPrice="@Model.MaxPrice"
-                           asp-route-sort="@Model.SortBy">Tất cả sản phẩm</a>
+                        <a href="@Link(query => { query.CategoryId = null; query.Spec.Clear(); })"
+                           aria-current="@(Model.CategoryId is null ? "page" : null)">Tất cả danh mục</a>
                     </li>
                     @foreach (var category in Model.Categories)
                     {
                         <li class="main-nav-list">
-                            <a asp-controller="Products" asp-action="Index" asp-route-categoryId="@category.Id"
-                               asp-route-q="@Model.Search" asp-route-minPrice="@Model.MinPrice"
-                               asp-route-maxPrice="@Model.MaxPrice" asp-route-sort="@Model.SortBy"
+                            <a href="@Link(query => { query.CategoryId = category.Id; query.Spec.Clear(); })"
                                aria-current="@(Model.CategoryId == category.Id ? "page" : null)">@category.Name</a>
                         </li>
                     }
                 </ul>
             </div>
+
+            <div class="sidebar-categories mt-4">
+                <div class="head">Thương hiệu</div>
+                <ul class="main-categories">
+                    <li class="main-nav-list">
+                        <a href="@Link(query => query.BrandId = null)"
+                           aria-current="@(Model.BrandId is null ? "page" : null)">Tất cả thương hiệu</a>
+                    </li>
+                    @foreach (var brand in Model.Brands)
+                    {
+                        <li class="main-nav-list">
+                            <a href="@Link(query => query.BrandId = brand.Id)"
+                               aria-current="@(Model.BrandId == brand.Id ? "page" : null)">@brand.Name</a>
+                        </li>
+                    }
+                </ul>
+            </div>
+
+            @if (Model.SpecFilters.Count > 0)
+            {
+                <div class="sidebar-filter mt-4">
+                    <div class="top-filter-head">Lọc theo thông số</div>
+                    <form action="@basePath" method="get" data-auto-submit>
+                        @if (Model.Search is not null) { <input type="hidden" name="q" value="@Model.Search" /> }
+                        <input type="hidden" name="categoryId" value="@Model.CategoryId" />
+                        @if (Model.BrandId.HasValue) { <input type="hidden" name="brandId" value="@Model.BrandId" /> }
+                        @if (Model.MinPrice.HasValue) { <input type="hidden" name="minPrice" value="@Model.MinPrice" /> }
+                        @if (Model.MaxPrice.HasValue) { <input type="hidden" name="maxPrice" value="@Model.MaxPrice" /> }
+                        @if (Model.SortBy != "newest") { <input type="hidden" name="sort" value="@Model.SortBy" /> }
+                        @foreach (var group in Model.SpecFilters)
+                        {
+                            <fieldset class="spec-filter">
+                                <legend class="spec-filter__name">
+                                    @group.Name
+                                    @if (!string.IsNullOrWhiteSpace(group.Hint)) { <span class="spec-filter__hint">@group.Hint</span> }
+                                </legend>
+                                @foreach (var option in group.Options)
+                                {
+                                    <label class="spec-filter__option" title="@option.Hint">
+                                        <input type="checkbox" name="spec" value="@option.Id" checked="@option.Selected" />
+                                        <span>@option.Value</span>
+                                        <small>@option.ProductCount</small>
+                                    </label>
+                                }
+                            </fieldset>
+                        }
+                        <noscript><div class="px-3 pb-3"><button type="submit" class="primary-btn">Áp dụng</button></div></noscript>
+                    </form>
+                </div>
+            }
 
             <div class="sidebar-filter mt-50">
                 <div class="top-filter-head">Bộ lọc sản phẩm</div>
@@ -60,7 +117,9 @@
                     <div class="head">Từ khóa và khoảng giá</div>
                     <form asp-controller="Products" asp-action="Index" method="get" class="px-3 pb-3">
                         <input type="hidden" name="categoryId" value="@Model.CategoryId" />
+                        <input type="hidden" name="brandId" value="@Model.BrandId" />
                         <input type="hidden" name="sort" value="@Model.SortBy" />
+                        @foreach (var specId in Model.SelectedSpecIds) { <input type="hidden" name="spec" value="@specId" /> }
                         <input type="hidden" id="minPrice" name="minPrice" value="@Model.MinPrice" />
                         <input type="hidden" id="maxPrice" name="maxPrice" value="@Model.MaxPrice" />
                         <label for="q">Tên sản phẩm</label>
@@ -89,9 +148,11 @@
         <main class="col-xl-9 col-lg-8 col-md-7">
             <form asp-controller="Products" asp-action="Index" method="get" class="filter-bar d-flex flex-wrap align-items-center">
                 <input type="hidden" name="categoryId" value="@Model.CategoryId" />
+                        <input type="hidden" name="brandId" value="@Model.BrandId" />
                 <input type="hidden" name="q" value="@Model.Search" />
                 <input type="hidden" name="minPrice" value="@Model.MinPrice" />
                 <input type="hidden" name="maxPrice" value="@Model.MaxPrice" />
+                @foreach (var specId in Model.SelectedSpecIds) { <input type="hidden" name="spec" value="@specId" /> }
                 <div class="sorting mr-auto">Hiển thị @firstProductNumber–@lastProductNumber / @Model.TotalCount sản phẩm</div>
                 <div class="sorting d-flex align-items-center">
                     <label for="sort" class="mr-2 mb-0">Sắp xếp:</label>
@@ -104,6 +165,36 @@
                 </div>
                 <button type="submit" class="primary-btn ml-3">Sắp xếp</button>
             </form>
+
+            @if (hasActiveFilters)
+            {
+                <div class="active-filters" aria-label="Bộ lọc đang áp dụng">
+                    <span class="active-filters__label">Đang lọc:</span>
+                    @if (Model.Search is not null)
+                    {
+                        <a class="active-filter" href="@Link(query => query.Q = null)" title="Bỏ từ khóa">“@Model.Search” <span aria-hidden="true">×</span></a>
+                    }
+                    @if (categoryName is not null)
+                    {
+                        <a class="active-filter" href="@Link(query => { query.CategoryId = null; query.Spec.Clear(); })" title="Bỏ danh mục">@categoryName <span aria-hidden="true">×</span></a>
+                    }
+                    @if (brandName is not null)
+                    {
+                        <a class="active-filter" href="@Link(query => query.BrandId = null)" title="Bỏ thương hiệu">@brandName <span aria-hidden="true">×</span></a>
+                    }
+                    @foreach (var (groupName, option) in selectedOptions)
+                    {
+                        <a class="active-filter" href="@Link(query => query.Spec.Remove(option.Id))" title="Bỏ điều kiện này">@groupName: @option.Value <span aria-hidden="true">×</span></a>
+                    }
+                    @if (Model.MinPrice.HasValue || Model.MaxPrice.HasValue)
+                    {
+                        <a class="active-filter" href="@Link(query => { query.MinPrice = null; query.MaxPrice = null; })" title="Bỏ khoảng giá">
+                            Giá @(Model.MinPrice.HasValue ? $"từ {Model.MinPrice:N0} ₫ " : "")@(Model.MaxPrice.HasValue ? $"đến {Model.MaxPrice:N0} ₫" : "") <span aria-hidden="true">×</span>
+                        </a>
+                    }
+                    <a class="active-filters__clear" href="@basePath">Xóa tất cả</a>
+                </div>
+            }
 
             <section class="lattest-product-area pb-40 category-list">
                 <div class="row">
@@ -120,23 +211,7 @@
                         @foreach (var product in Model.Products)
                         {
                             <div class="col-lg-4 col-md-6">
-                                <div class="single-product">
-                                    <a asp-controller="Products" asp-action="Details" asp-route-id="@product.Id">
-                                        <img class="img-fluid"
-                                             src="@Url.Content(string.IsNullOrWhiteSpace(product.ImageUrl) ? "~/img/product/p1.jpg" : product.ImageUrl)"
-                                             alt="@product.Name" />
-                                    </a>
-                                    <div class="product-details">
-                                        <h6>@product.Name</h6>
-                                        <div class="price"><h6>@product.Price.ToString("N0") ₫</h6></div>
-                                        <div class="prd-bottom">
-                                            <a asp-controller="Products" asp-action="Details" asp-route-id="@product.Id" class="social-info">
-                                                <span class="lnr lnr-move"></span>
-                                                <p class="hover-text">Xem chi tiết</p>
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
+                                <partial name="_ProductCard" model="product" />
                             </div>
                         }
                     }
@@ -150,28 +225,19 @@
                     <div class="pagination">
                         @if (Model.HasPreviousPage)
                         {
-                            <a asp-controller="Products" asp-action="Index" asp-route-page="@(Model.PageNumber - 1)"
-                               asp-route-categoryId="@Model.CategoryId" asp-route-q="@Model.Search"
-                               asp-route-minPrice="@Model.MinPrice" asp-route-maxPrice="@Model.MaxPrice"
-                               asp-route-sort="@Model.SortBy" class="prev-arrow" aria-label="Trang trước">
+                            <a href="@Link(query => query.Page = Model.PageNumber - 1)" class="prev-arrow" aria-label="Trang trước">
                                 <i class="fa fa-long-arrow-left" aria-hidden="true"></i>
                             </a>
                         }
                         @for (var pageNumberItem = startPage; pageNumberItem <= endPage; pageNumberItem++)
                         {
-                            <a asp-controller="Products" asp-action="Index" asp-route-page="@pageNumberItem"
-                               asp-route-categoryId="@Model.CategoryId" asp-route-q="@Model.Search"
-                               asp-route-minPrice="@Model.MinPrice" asp-route-maxPrice="@Model.MaxPrice"
-                               asp-route-sort="@Model.SortBy" class="@(pageNumberItem == Model.PageNumber ? "active" : "")">
+                            <a href="@Link(query => query.Page = pageNumberItem)" class="@(pageNumberItem == Model.PageNumber ? "active" : "")">
                                 @pageNumberItem
                             </a>
                         }
                         @if (Model.HasNextPage)
                         {
-                            <a asp-controller="Products" asp-action="Index" asp-route-page="@(Model.PageNumber + 1)"
-                               asp-route-categoryId="@Model.CategoryId" asp-route-q="@Model.Search"
-                               asp-route-minPrice="@Model.MinPrice" asp-route-maxPrice="@Model.MaxPrice"
-                               asp-route-sort="@Model.SortBy" class="next-arrow" aria-label="Trang sau">
+                            <a href="@Link(query => query.Page = Model.PageNumber + 1)" class="next-arrow" aria-label="Trang sau">
                                 <i class="fa fa-long-arrow-right" aria-hidden="true"></i>
                             </a>
                         }

@@ -1,6 +1,8 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using PopPop.Data;
 using PopPop.Data.Entities;
+using PopPop.Data.Entities.Enums;
+using PopPop.Models;
 using PopPop.Repositories.Interfaces;
 
 namespace PopPop.Repositories.Implementations;
@@ -24,7 +26,7 @@ public sealed class ProductRepository : Repository<Product, int>, IProductReposi
         return await DbSet
             .AsNoTracking()
             .AsSplitQuery()
-            .Where(product => product.IsActive &&
+            .Where(product => product.IsActive && product.Category!.IsActive && product.Brand!.IsActive &&
                 product.ProductVariants.Any(variant => variant.IsActive && variant.StockQuantity > 0))
             .OrderByDescending(product => product.CreatedAt)
             .ThenByDescending(product => product.Id)
@@ -37,74 +39,29 @@ public sealed class ProductRepository : Repository<Product, int>, IProductReposi
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Product>> SearchAsync(
-        string keyword,
-        int count = 6,
-        CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Brand>> GetBrandsWithProductsAsync(int? categoryId, CancellationToken cancellationToken = default)
     {
-        if (count <= 0 || string.IsNullOrWhiteSpace(keyword))
+        var visible = CatalogFiltering.VisibleProducts(Context);
+        if (categoryId.HasValue)
         {
-            return [];
+            visible = visible.Where(product => product.CategoryId == categoryId.Value);
         }
 
-        var normalizedKeyword = keyword.Trim();
-
-        return await DbSet
+        return await Context.Brands
             .AsNoTracking()
-            .AsSplitQuery()
-            .Where(product => product.IsActive &&
-                product.Name.Contains(normalizedKeyword) &&
-                product.ProductVariants.Any(variant => variant.IsActive && variant.StockQuantity > 0))
-            .OrderBy(product => product.Name)
-            .ThenByDescending(product => product.CreatedAt)
-            .Take(count)
-            .Include(product => product.ProductImages
-                .OrderByDescending(image => image.IsPrimary)
-                .ThenBy(image => image.SortOrder))
-            .Include(product => product.ProductVariants
-                .Where(variant => variant.IsActive && variant.StockQuantity > 0))
+            .Where(brand => brand.IsActive && visible.Any(product => product.BrandId == brand.Id))
+            .OrderBy(brand => brand.Name)
             .ToListAsync(cancellationToken);
     }
 
     public async Task<(IReadOnlyList<Product> Products, int TotalCount)> GetCatalogPageAsync(
         int pageNumber,
         int pageSize,
-        int? categoryId,
-        string? search,
-        decimal? minPrice,
-        decimal? maxPrice,
+        CatalogFilter filter,
         string sortBy,
         CancellationToken cancellationToken = default)
     {
-        var query = DbSet
-            .AsNoTracking()
-            .Where(product => product.IsActive
-                && product.ProductVariants.Any(variant => variant.IsActive && variant.StockQuantity > 0));
-
-        if (categoryId.HasValue)
-        {
-            query = query.Where(product => product.CategoryId == categoryId.Value);
-        }
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var normalizedSearch = search.Trim();
-            query = query.Where(product => product.Name.Contains(normalizedSearch));
-        }
-
-        if (minPrice.HasValue)
-        {
-            query = query.Where(product => product.ProductVariants
-                .Where(variant => variant.IsActive && variant.StockQuantity > 0)
-                .Min(variant => (decimal?)variant.Price) >= minPrice.Value);
-        }
-
-        if (maxPrice.HasValue)
-        {
-            query = query.Where(product => product.ProductVariants
-                .Where(variant => variant.IsActive && variant.StockQuantity > 0)
-                .Min(variant => (decimal?)variant.Price) <= maxPrice.Value);
-        }
+        var query = CatalogFiltering.VisibleProducts(Context).AsNoTracking().ApplyFilter(Context, filter);
 
         var totalCount = await query.CountAsync(cancellationToken);
         var orderedQuery = sortBy switch
@@ -148,6 +105,114 @@ public sealed class ProductRepository : Repository<Product, int>, IProductReposi
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Brand>> GetActiveBrandsAsync(CancellationToken cancellationToken = default)
+    {
+        return await Context.Brands
+            .AsNoTracking()
+            .Where(brand => brand.IsActive)
+            .OrderBy(brand => brand.Name)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CatalogGroupSummary>> GetCategorySummariesAsync(CancellationToken cancellationToken = default)
+    {
+        var rows = await Context.Categories
+            .AsNoTracking()
+            .Where(category => category.IsActive)
+            .Select(category => new
+            {
+                category.Id,
+                category.Name,
+                category.Description,
+                ProductCount = category.Products.Count(product => product.IsActive && product.Category!.IsActive && product.Brand!.IsActive
+                    && product.ProductVariants.Any(variant => variant.IsActive && variant.StockQuantity > 0)),
+                ImageUrl = category.Products
+                    .Where(product => product.IsActive && product.Category!.IsActive && product.Brand!.IsActive)
+                    .OrderByDescending(product => product.CreatedAt)
+                    .SelectMany(product => product.ProductImages.Where(image => image.IsPrimary))
+                    .Select(image => image.ImageUrl)
+                    .FirstOrDefault()
+            })
+            .Where(row => row.ProductCount > 0)
+            .OrderByDescending(row => row.ProductCount)
+            .ThenBy(row => row.Name)
+            .ToListAsync(cancellationToken);
+
+        return rows.Select(row => new CatalogGroupSummary(row.Id, row.Name, row.Description, row.ProductCount, row.ImageUrl)).ToList();
+    }
+
+    public async Task<IReadOnlyList<CatalogGroupSummary>> GetBrandSummariesAsync(CancellationToken cancellationToken = default)
+    {
+        var rows = await Context.Brands
+            .AsNoTracking()
+            .Where(brand => brand.IsActive)
+            .Select(brand => new
+            {
+                brand.Id,
+                brand.Name,
+                brand.Description,
+                ProductCount = brand.Products.Count(product => product.IsActive && product.Category!.IsActive && product.Brand!.IsActive
+                    && product.ProductVariants.Any(variant => variant.IsActive && variant.StockQuantity > 0)),
+                ImageUrl = brand.Products
+                    .Where(product => product.IsActive && product.Category!.IsActive && product.Brand!.IsActive)
+                    .OrderByDescending(product => product.CreatedAt)
+                    .SelectMany(product => product.ProductImages.Where(image => image.IsPrimary))
+                    .Select(image => image.ImageUrl)
+                    .FirstOrDefault()
+            })
+            .Where(row => row.ProductCount > 0)
+            .OrderByDescending(row => row.ProductCount)
+            .ThenBy(row => row.Name)
+            .ToListAsync(cancellationToken);
+
+        return rows.Select(row => new CatalogGroupSummary(row.Id, row.Name, row.Description, row.ProductCount, row.ImageUrl)).ToList();
+    }
+
+    public async Task<IReadOnlyList<Product>> GetBestSellingAvailableAsync(
+        int count,
+        CancellationToken cancellationToken = default)
+    {
+        if (count <= 0)
+        {
+            return [];
+        }
+
+        var ranking = await Context.OrderItems
+            .AsNoTracking()
+            .Where(item => item.Order != null
+                && item.Order.Status != OrderStatus.Cancelled
+                && item.ProductVariant != null)
+            .GroupBy(item => item.ProductVariant!.ProductId)
+            .Select(group => new { ProductId = group.Key, Quantity = group.Sum(item => item.Quantity) })
+            .OrderByDescending(row => row.Quantity)
+            .Take(count * 2)
+            .ToListAsync(cancellationToken);
+
+        if (ranking.Count == 0)
+        {
+            return [];
+        }
+
+        var productIds = ranking.Select(row => row.ProductId).ToList();
+        var products = await DbSet
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Where(product => productIds.Contains(product.Id)
+                && product.IsActive && product.Category!.IsActive && product.Brand!.IsActive
+                && product.ProductVariants.Any(variant => variant.IsActive && variant.StockQuantity > 0))
+            .Include(product => product.ProductImages
+                .OrderByDescending(image => image.IsPrimary)
+                .ThenBy(image => image.SortOrder))
+            .Include(product => product.ProductVariants
+                .Where(variant => variant.IsActive && variant.StockQuantity > 0))
+            .ToListAsync(cancellationToken);
+
+        return products
+            .OrderBy(product => productIds.IndexOf(product.Id))
+            .Take(count)
+            .ToList();
+    }
+
     public async Task<decimal> GetCatalogMaxPriceAsync(CancellationToken cancellationToken = default)
     {
         return await Context.ProductVariants
@@ -155,7 +220,7 @@ public sealed class ProductRepository : Repository<Product, int>, IProductReposi
             .Where(variant => variant.IsActive
                 && variant.StockQuantity > 0
                 && variant.Product != null
-                && variant.Product.IsActive)
+                && variant.Product.IsActive && variant.Product.Category!.IsActive && variant.Product.Brand!.IsActive)
             .Select(variant => (decimal?)variant.Price)
             .MaxAsync(cancellationToken) ?? 0m;
     }
@@ -171,7 +236,7 @@ public sealed class ProductRepository : Repository<Product, int>, IProductReposi
                 variant.IsActive &&
                 variant.StockQuantity > 0 &&
                 variant.Product != null &&
-                variant.Product.IsActive,
+                variant.Product.IsActive && variant.Product.Category!.IsActive && variant.Product.Brand!.IsActive,
                 cancellationToken);
     }
 
@@ -180,7 +245,7 @@ public sealed class ProductRepository : Repository<Product, int>, IProductReposi
         return await DbSet
             .AsNoTracking()
             .AsSplitQuery()
-            .Where(product => product.Id == productId && product.IsActive)
+            .Where(product => product.Id == productId && product.IsActive && product.Category!.IsActive && product.Brand!.IsActive)
             .Include(product => product.Category)
             .Include(product => product.Brand)
             .Include(product => product.ProductImages

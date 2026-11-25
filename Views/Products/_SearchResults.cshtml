@@ -1,18 +1,21 @@
-@model IReadOnlyList<PopPop.Models.ProductCardViewModel>
+@model PopPop.Models.SearchResultsViewModel
 
-@if (Model is null || Model.Count == 0)
+@if (Model.Products.Count == 0)
 {
-    <div class="search-empty">Không tìm thấy sản phẩm nào.</div>
+    <div class="search-empty">Không tìm thấy sản phẩm phù hợp. Hãy thử bỏ bớt điều kiện lọc.</div>
     return;
 }
 
-@foreach (var product in Model)
+@foreach (var product in Model.Products)
 {
     <a class="search-result-item" asp-controller="Products" asp-action="Details" asp-route-id="@product.Id">
-        <img class="search-result-thumb" src="@(string.IsNullOrWhiteSpace(product.ImageUrl) ? "/img/product/card.jpg" : product.ImageUrl)" alt="@product.Name" />
+        <img class="search-result-thumb" src="@(string.IsNullOrWhiteSpace(product.ImageUrl) ? "/img/product/card.jpg" : product.ImageUrl)" alt="" />
         <span class="search-result-meta">
             <span class="search-result-name">@product.Name</span>
-            <span class="search-result-price">@product.Price.ToString("C0", new System.Globalization.CultureInfo("vi-VN"))</span>
+            <span class="search-result-price">@product.Price.ToString("N0") ₫</span>
         </span>
     </a>
 }
+<a class="search-result-all" href="@Model.CatalogUrl">
+    Xem tất cả @Model.TotalCount sản phẩm phù hợp <i class="fa fa-long-arrow-right" aria-hidden="true"></i>
+</a>

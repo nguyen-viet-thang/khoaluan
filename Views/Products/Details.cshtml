@@ -43,6 +43,25 @@
                 {
                     <p>@Model.Description</p>
                 }
+                @if (Model.Specs.Count > 0)
+                {
+                    <table class="product-specs" aria-label="Thông số sản phẩm">
+                        @foreach (var spec in Model.Specs)
+                        {
+                            <tr>
+                                <th scope="row" title="@spec.Hint">@spec.Name</th>
+                                <td>
+                                    @for (var index = 0; index < spec.Values.Count; index++)
+                                    {
+                                        var value = spec.Values[index];
+                                        <a asp-controller="Products" asp-action="Index" asp-route-categoryId="@Model.CategoryId" asp-route-spec="@value.OptionId"
+                                           title="Xem sản phẩm cùng thông số @value.Value">@value.Value</a>@(string.IsNullOrWhiteSpace(value.Hint) ? "" : $" ({value.Hint})")@(index < spec.Values.Count - 1 ? ", " : "")
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </table>
+                }
 
                 @if (Model.Variants.Count == 0)
                 {

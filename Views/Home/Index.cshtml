@@ -1,833 +1,228 @@
-﻿@model IReadOnlyList<PopPop.Models.ProductCardViewModel>
-
+﻿@model PopPop.Models.HomeViewModel
+@inject Microsoft.Extensions.Options.IOptions<PopPop.Models.ShippingOptions> ShippingOptionsAccessor
 @{
     Layout = "_Layout";
     ViewData["Title"] = "Trang chủ";
+    var shipping = ShippingOptionsAccessor.Value;
+    string Shorten(string? text, int max)
+    {
+        if (string.IsNullOrWhiteSpace(text) || text.Length <= max)
+        {
+            return text ?? string.Empty;
+        }
+
+        var cut = text.LastIndexOf(' ', max);
+        return text[..(cut > 0 ? cut : max)] + "…";
+    }
 }
 
-<!-- start banner Area -->
+<!-- Hero: featured products from the catalog -->
 <section class="banner-area">
     <div class="container">
         <div class="row fullscreen align-items-center justify-content-start">
             <div class="col-lg-12">
-                <div class="active-banner-slider owl-carousel">
-                    <!-- single-slide -->
-                    <div class="row single-slide align-items-center d-flex">
-                        <div class="col-lg-5 col-md-6">
-                            <div class="banner-content">
-                                <h1>Đồ cầu lông<br>mới</h1>
-                                <p>
-                                    Chọn sản phẩm phù hợp cho buổi tập và thi đấu.
-                                </p>
-                                <div class="add-bag d-flex align-items-center">
-                                    <a class="add-btn" href=""><span class="lnr lnr-cross"></span></a>
-                                    <span class="add-text text-uppercase">Thêm vào giỏ</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-lg-7">
-                            <div class="banner-img">
-                                <img class="img-fluid" src="img/banner/banner-img.png" alt="">
-                            </div>
-                        </div>
-                    </div>
-                    <!-- single-slide -->
-                    <div class="row single-slide">
-                        <div class="col-lg-5">
-                            <div class="banner-content">
-                                <h1>Đồ cầu lông<br>mới</h1>
-                                <p>
-                                    Chọn sản phẩm phù hợp cho buổi tập và thi đấu.
-                                </p>
-                                <div class="add-bag d-flex align-items-center">
-                                    <a class="add-btn" href=""><span class="lnr lnr-cross"></span></a>
-                                    <span class="add-text text-uppercase">Thêm vào giỏ</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-lg-7">
-                            <div class="banner-img">
-                                <img class="img-fluid" src="img/banner/banner-img.png" alt="">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-<!-- end banner Area -->
-<!-- Start Features Area -->
-<section class="features-area section_gap">
-    <div class="container">
-        <div class="row features-inner">
-            <!-- single features -->
-            <div class="col-lg-3 col-md-6 col-sm-6">
-                <div class="single-features">
-                    <div class="f-icon">
-                        <img src="img/features/f-icon1.png" alt="">
-                    </div>
-                    <h6>Giao hàng</h6>
-                    <p>Thông tin giao hàng rõ ràng.</p>
-                </div>
-            </div>
-            <!-- single features -->
-            <div class="col-lg-3 col-md-6 col-sm-6">
-                <div class="single-features">
-                    <div class="f-icon">
-                        <img src="img/features/f-icon2.png" alt="">
-                    </div>
-                    <h6>Đổi trả</h6>
-                    <p>Thông tin đổi trả rõ ràng.</p>
-                </div>
-            </div>
-            <!-- single features -->
-            <div class="col-lg-3 col-md-6 col-sm-6">
-                <div class="single-features">
-                    <div class="f-icon">
-                        <img src="img/features/f-icon3.png" alt="">
-                    </div>
-                    <h6>Hỗ trợ khách hàng</h6>
-                    <p>Hỗ trợ khi bạn cần.</p>
-                </div>
-            </div>
-            <!-- single features -->
-            <div class="col-lg-3 col-md-6 col-sm-6">
-                <div class="single-features">
-                    <div class="f-icon">
-                        <img src="img/features/f-icon4.png" alt="">
-                    </div>
-                    <h6>Thanh toán tiện lợi</h6>
-                    <p>Thông tin thanh toán rõ ràng.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-<!-- End Features Area -->
-<!-- Start Category Area -->
-<section class="category-area" id="shop">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-8 col-md-12">
-                <div class="row">
-                    <div class="col-lg-8 col-md-8">
-                        <div class="single-deal">
-                            <div class="overlay"></div>
-                            <img class="img-fluid w-100" src="img/category/c1.jpg" alt="">
-                            <a href="img/category/c1.jpg" class="img-pop-up" target="_blank">
-                                <div class="deal-details">
-                                    <h6 class="deal-title">Giày thể thao</h6>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-                    <div class="col-lg-4 col-md-4">
-                        <div class="single-deal">
-                            <div class="overlay"></div>
-                            <img class="img-fluid w-100" src="img/category/c2.jpg" alt="">
-                            <a href="img/category/c2.jpg" class="img-pop-up" target="_blank">
-                                <div class="deal-details">
-                                    <h6 class="deal-title">Giày thể thao</h6>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-                    <div class="col-lg-4 col-md-4">
-                        <div class="single-deal">
-                            <div class="overlay"></div>
-                            <img class="img-fluid w-100" src="img/category/c3.jpg" alt="">
-                            <a href="img/category/c3.jpg" class="img-pop-up" target="_blank">
-                                <div class="deal-details">
-                                    <h6 class="deal-title">Giày đôi</h6>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-                    <div class="col-lg-8 col-md-8">
-                        <div class="single-deal">
-                            <div class="overlay"></div>
-                            <img class="img-fluid w-100" src="img/category/c4.jpg" alt="">
-                            <a href="img/category/c4.jpg" class="img-pop-up" target="_blank">
-                                <div class="deal-details">
-                                    <h6 class="deal-title">Giày thể thao</h6>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-4 col-md-6">
-                <div class="single-deal">
-                    <div class="overlay"></div>
-                    <img class="img-fluid w-100" src="img/category/c5.jpg" alt="">
-                    <a href="img/category/c5.jpg" class="img-pop-up" target="_blank">
-                        <div class="deal-details">
-                            <h6 class="deal-title">Giày thể thao</h6>
-                        </div>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-<!-- End Category Area -->
-<!-- Start Product Area -->
-<section class="owl-carousel active-product-area section_gap" id="products">
-    <!-- single product slide -->
-    <div class="single-product-slider">
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-lg-6 text-center">
-                    <div class="section-title">
-                        <h1>Sản phẩm mới</h1>
-                        <p>
-                            Chọn sản phẩm phù hợp cho buổi tập và thi đấu.
-                        </p>
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                @if (Model.Count == 0)
+                @if (Model.Featured.Count == 0)
                 {
-                    <div class="col-12 text-center">
-                        <p>Hiện chưa có sản phẩm mới.</p>
+                    <div class="banner-content store-hero__content">
+                        <h1>Dụng cụ cầu lông<br />chính hãng</h1>
+                        <p>Vợt, giày, quần áo, quả cầu và phụ kiện cho tập luyện và thi đấu.</p>
+                        <a asp-controller="Products" asp-action="Index" class="primary-btn">Mua sắm ngay</a>
                     </div>
                 }
                 else
                 {
-                    @foreach (var product in Model)
-                    {
-                        <div class="col-lg-3 col-md-6">
-                            <div class="single-product">
-                                <img class="img-fluid"
-                                     src="@Url.Content(string.IsNullOrWhiteSpace(product.ImageUrl) ? "~/img/product/p1.jpg" : product.ImageUrl)"
-                                     alt="@product.Name">
-                                <div class="product-details">
-                                    <h6>@product.Name</h6>
-                                    <div class="price">
-                                        <h6>@product.Price.ToString("N0") ₫</h6>
+                    <div class="active-banner-slider owl-carousel">
+                        @foreach (var item in Model.Featured)
+                        {
+                            <div class="row single-slide align-items-center d-flex">
+                                <div class="col-lg-5 col-md-6">
+                                    <div class="banner-content store-hero__content">
+                                        @if (!string.IsNullOrWhiteSpace(item.CategoryName))
+                                        {
+                                            <span class="store-hero__eyebrow">@item.CategoryName</span>
+                                        }
+                                        <h1>@item.Name</h1>
+                                        <p>@Shorten(item.Description, 160)</p>
+                                        <p class="store-hero__price">Giá từ <strong>@item.Price.ToString("N0") ₫</strong></p>
+                                        <div class="d-flex flex-wrap store-hero__actions">
+                                            <a asp-controller="Products" asp-action="Details" asp-route-id="@item.Id" class="primary-btn">Xem chi tiết</a>
+                                            <a asp-controller="Products" asp-action="Index" class="store-hero__link">Xem tất cả sản phẩm <span class="lnr lnr-arrow-right"></span></a>
+                                        </div>
                                     </div>
-                                    <a asp-controller="Products" asp-action="Details" asp-route-id="@product.Id" class="primary-btn">Xem chi tiết</a>
+                                </div>
+                                <div class="col-lg-7 col-md-6">
+                                    <div class="store-hero__image">
+                                        <img src="@Url.Content(item.ImageUrl ?? "~/img/logo.png")" alt="@item.Name" />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    }
+                        }
+                    </div>
                 }
             </div>
         </div>
     </div>
-    <!-- single product slide -->
-    <div class="single-product-slider">
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-lg-6 text-center">
-                    <div class="section-title">
-                        <h1>Sản phẩm sắp ra mắt</h1>
-                        <p>
-                            Chọn sản phẩm phù hợp cho buổi tập và thi đấu.
-                        </p>
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                <!-- single product -->
-                <div class="col-lg-3 col-md-6">
-                    <div class="single-product">
-                        <img class="img-fluid" src="img/product/p6.jpg" alt="">
-                        <div class="product-details">
-                            <h6>
-                                Giày thể thao Adidas
-                            </h6>
-                            <div class="price">
-                                <h6>$150.00</h6>
-                                <h6 class="l-through">$210.00</h6>
-                            </div>
-                            <div class="prd-bottom">
-
-                                <a href="" class="social-info">
-                                    <span class="ti-bag"></span>
-                                    <p class="hover-text">Thêm vào giỏ</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-heart"></span>
-                                    <p class="hover-text">Yêu thích</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-sync"></span>
-                                    <p class="hover-text">So sánh</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-move"></span>
-                                    <p class="hover-text">Xem thêm</p>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- single product -->
-                <div class="col-lg-3 col-md-6">
-                    <div class="single-product">
-                        <img class="img-fluid" src="img/product/p8.jpg" alt="">
-                        <div class="product-details">
-                            <h6>
-                                Giày thể thao Adidas
-                            </h6>
-                            <div class="price">
-                                <h6>$150.00</h6>
-                                <h6 class="l-through">$210.00</h6>
-                            </div>
-                            <div class="prd-bottom">
-
-                                <a href="" class="social-info">
-                                    <span class="ti-bag"></span>
-                                    <p class="hover-text">Thêm vào giỏ</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-heart"></span>
-                                    <p class="hover-text">Yêu thích</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-sync"></span>
-                                    <p class="hover-text">So sánh</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-move"></span>
-                                    <p class="hover-text">Xem thêm</p>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- single product -->
-                <div class="col-lg-3 col-md-6">
-                    <div class="single-product">
-                        <img class="img-fluid" src="img/product/p3.jpg" alt="">
-                        <div class="product-details">
-                            <h6>
-                                Giày thể thao Adidas
-                            </h6>
-                            <div class="price">
-                                <h6>$150.00</h6>
-                                <h6 class="l-through">$210.00</h6>
-                            </div>
-                            <div class="prd-bottom">
-
-                                <a href="" class="social-info">
-                                    <span class="ti-bag"></span>
-                                    <p class="hover-text">Thêm vào giỏ</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-heart"></span>
-                                    <p class="hover-text">Yêu thích</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-sync"></span>
-                                    <p class="hover-text">So sánh</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-move"></span>
-                                    <p class="hover-text">Xem thêm</p>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- single product -->
-                <div class="col-lg-3 col-md-6">
-                    <div class="single-product">
-                        <img class="img-fluid" src="img/product/p5.jpg" alt="">
-                        <div class="product-details">
-                            <h6>
-                                Giày thể thao Adidas
-                            </h6>
-                            <div class="price">
-                                <h6>$150.00</h6>
-                                <h6 class="l-through">$210.00</h6>
-                            </div>
-                            <div class="prd-bottom">
-
-                                <a href="" class="social-info">
-                                    <span class="ti-bag"></span>
-                                    <p class="hover-text">Thêm vào giỏ</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-heart"></span>
-                                    <p class="hover-text">Yêu thích</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-sync"></span>
-                                    <p class="hover-text">So sánh</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-move"></span>
-                                    <p class="hover-text">Xem thêm</p>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- single product -->
-                <div class="col-lg-3 col-md-6">
-                    <div class="single-product">
-                        <img class="img-fluid" src="img/product/p7.jpg" alt="">
-                        <div class="product-details">
-                            <h6>
-                                Giày thể thao Adidas
-                            </h6>
-                            <div class="price">
-                                <h6>$150.00</h6>
-                                <h6 class="l-through">$210.00</h6>
-                            </div>
-                            <div class="prd-bottom">
-
-                                <a href="" class="social-info">
-                                    <span class="ti-bag"></span>
-                                    <p class="hover-text">Thêm vào giỏ</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-heart"></span>
-                                    <p class="hover-text">Yêu thích</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-sync"></span>
-                                    <p class="hover-text">So sánh</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-move"></span>
-                                    <p class="hover-text">Xem thêm</p>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- single product -->
-                <div class="col-lg-3 col-md-6">
-                    <div class="single-product">
-                        <img class="img-fluid" src="img/product/p8.jpg" alt="">
-                        <div class="product-details">
-                            <h6>
-                                Giày thể thao Adidas
-                            </h6>
-                            <div class="price">
-                                <h6>$150.00</h6>
-                                <h6 class="l-through">$210.00</h6>
-                            </div>
-                            <div class="prd-bottom">
-
-                                <a href="" class="social-info">
-                                    <span class="ti-bag"></span>
-                                    <p class="hover-text">Thêm vào giỏ</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-heart"></span>
-                                    <p class="hover-text">Yêu thích</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-sync"></span>
-                                    <p class="hover-text">So sánh</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-move"></span>
-                                    <p class="hover-text">Xem thêm</p>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- single product slide -->
-    <div class="single-product-slider">
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-lg-6 text-center">
-                    <div class="section-title">
-                        <h1>Sản phẩm sắp ra mắt</h1>
-                        <p>
-                            Chọn sản phẩm phù hợp cho buổi tập và thi đấu.
-                        </p>
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                <!-- single product -->
-                <div class="col-lg-3 col-md-6">
-                    <div class="single-product">
-                        <img class="img-fluid" src="img/product/p6.jpg" alt="">
-                        <div class="product-details">
-                            <h6>
-                                Giày thể thao Adidas
-                            </h6>
-                            <div class="price">
-                                <h6>$150.00</h6>
-                                <h6 class="l-through">$210.00</h6>
-                            </div>
-                            <div class="prd-bottom">
-
-                                <a href="" class="social-info">
-                                    <span class="ti-bag"></span>
-                                    <p class="hover-text">Thêm vào giỏ</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-heart"></span>
-                                    <p class="hover-text">Yêu thích</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-sync"></span>
-                                    <p class="hover-text">So sánh</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-move"></span>
-                                    <p class="hover-text">Xem thêm</p>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- single product -->
-                <div class="col-lg-3 col-md-6">
-                    <div class="single-product">
-                        <img class="img-fluid" src="img/product/p8.jpg" alt="">
-                        <div class="product-details">
-                            <h6>
-                                Giày thể thao Adidas
-                            </h6>
-                            <div class="price">
-                                <h6>$150.00</h6>
-                                <h6 class="l-through">$210.00</h6>
-                            </div>
-                            <div class="prd-bottom">
-
-                                <a href="" class="social-info">
-                                    <span class="ti-bag"></span>
-                                    <p class="hover-text">Thêm vào giỏ</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-heart"></span>
-                                    <p class="hover-text">Yêu thích</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-sync"></span>
-                                    <p class="hover-text">So sánh</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-move"></span>
-                                    <p class="hover-text">Xem thêm</p>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- single product -->
-                <div class="col-lg-3 col-md-6">
-                    <div class="single-product">
-                        <img class="img-fluid" src="img/product/p3.jpg" alt="">
-                        <div class="product-details">
-                            <h6>
-                                Giày thể thao Adidas
-                            </h6>
-                            <div class="price">
-                                <h6>$150.00</h6>
-                                <h6 class="l-through">$210.00</h6>
-                            </div>
-                            <div class="prd-bottom">
-
-                                <a href="" class="social-info">
-                                    <span class="ti-bag"></span>
-                                    <p class="hover-text">Thêm vào giỏ</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-heart"></span>
-                                    <p class="hover-text">Yêu thích</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-sync"></span>
-                                    <p class="hover-text">So sánh</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-move"></span>
-                                    <p class="hover-text">Xem thêm</p>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- single product -->
-                <div class="col-lg-3 col-md-6">
-                    <div class="single-product">
-                        <img class="img-fluid" src="img/product/p5.jpg" alt="">
-                        <div class="product-details">
-                            <h6>
-                                Giày thể thao Adidas
-                            </h6>
-                            <div class="price">
-                                <h6>$150.00</h6>
-                                <h6 class="l-through">$210.00</h6>
-                            </div>
-                            <div class="prd-bottom">
-
-                                <a href="" class="social-info">
-                                    <span class="ti-bag"></span>
-                                    <p class="hover-text">Thêm vào giỏ</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-heart"></span>
-                                    <p class="hover-text">Yêu thích</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-sync"></span>
-                                    <p class="hover-text">So sánh</p>
-                                </a>
-                                <a href="" class="social-info">
-                                    <span class="lnr lnr-move"></span>
-                                    <p class="hover-text">Xem thêm</p>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </section>
-<!-- End Product Area -->
-<!-- Start exclusive deal Area -->
-<section class="exclusive-deal-area">
-    <div class="container-fluid">
-        <div class="row justify-content-center align-items-center">
-            <div class="col-lg-6 no-padding exclusive-left">
-                <div class="row clock_sec clockdiv" id="clockdiv">
-                    <div class="col-lg-12">
-                        <h1>Ưu đãi sắp kết thúc!</h1>
-                        <p>Khám phá sản phẩm được nhiều người lựa chọn.</p>
-                    </div>
-                    <div class="col-lg-12">
-                        <div class="row clock-wrap">
-                            <div class="col clockinner1 clockinner">
-                                <h1 class="days">150</h1>
-                                <span class="smalltext">Ngày</span>
-                            </div>
-                            <div class="col clockinner clockinner1">
-                                <h1 class="hours">23</h1>
-                                <span class="smalltext">Giờ</span>
-                            </div>
-                            <div class="col clockinner clockinner1">
-                                <h1 class="minutes">47</h1>
-                                <span class="smalltext">Phút</span>
-                            </div>
-                            <div class="col clockinner clockinner1">
-                                <h1 class="seconds">59</h1>
-                                <span class="smalltext">Giây</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <a href="" class="primary-btn">Mua ngay</a>
-            </div>
-            <div class="col-lg-6 no-padding exclusive-right">
-                <div class="active-exclusive-product-slider">
-                    <!-- single exclusive carousel -->
-                    <div class="single-exclusive-slider">
-                        <img class="img-fluid" src="img/product/e-p1.png" alt="">
-                        <div class="product-details">
-                            <div class="price">
-                                <h6>$150.00</h6>
-                                <h6 class="l-through">$210.00</h6>
-                            </div>
-                            <h4>
-                                Giày thể thao Adidas
-                            </h4>
-                            <div class="add-bag d-flex align-items-center justify-content-center">
-                                <a class="add-btn" href=""><span class="ti-bag"></span></a>
-                                <span class="add-text text-uppercase">Thêm vào giỏ</span>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- single exclusive carousel -->
-                    <div class="single-exclusive-slider">
-                        <img class="img-fluid" src="img/product/e-p1.png" alt="">
-                        <div class="product-details">
-                            <div class="price">
-                                <h6>$150.00</h6>
-                                <h6 class="l-through">$210.00</h6>
-                            </div>
-                            <h4>
-                                Giày thể thao Adidas
-                            </h4>
-                            <div class="add-bag d-flex align-items-center justify-content-center">
-                                <a class="add-btn" href=""><span class="ti-bag"></span></a>
-                                <span class="add-text text-uppercase">Thêm vào giỏ</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-<!-- End exclusive deal Area -->
-<!-- Start brand Area -->
-<section class="brand-area section_gap">
+
+<!-- Shop policies (real behaviour of the system) -->
+<section class="features-area section_gap">
     <div class="container">
-        <div class="row">
-            <a class="col single-img" href="#">
-                <img class="img-fluid d-block mx-auto" src="img/brand/1.png" alt="">
-            </a>
-            <a class="col single-img" href="#">
-                <img class="img-fluid d-block mx-auto" src="img/brand/2.png" alt="">
-            </a>
-            <a class="col single-img" href="#">
-                <img class="img-fluid d-block mx-auto" src="img/brand/3.png" alt="">
-            </a>
-            <a class="col single-img" href="#">
-                <img class="img-fluid d-block mx-auto" src="img/brand/4.png" alt="">
-            </a>
-            <a class="col single-img" href="#">
-                <img class="img-fluid d-block mx-auto" src="img/brand/5.png" alt="">
-            </a>
+        <div class="row features-inner">
+            <div class="col-lg-3 col-md-6 col-sm-6">
+                <div class="single-features">
+                    <div class="f-icon store-feature__icon"><i class="fa fa-truck" aria-hidden="true"></i></div>
+                    <h6>Giao hàng toàn quốc</h6>
+                    <p>
+                        @if (shipping.Fee == 0)
+                        {
+                            <text>Miễn phí giao hàng mọi đơn</text>
+                        }
+                        else if (shipping.FreeShippingThreshold > 0)
+                        {
+                            <text>Miễn phí cho đơn từ @shipping.FreeShippingThreshold.ToString("N0") ₫</text>
+                        }
+                        else
+                        {
+                            <text>Phí giao hàng @shipping.Fee.ToString("N0") ₫</text>
+                        }
+                    </p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 col-sm-6">
+                <div class="single-features">
+                    <div class="f-icon store-feature__icon"><i class="fa fa-money" aria-hidden="true"></i></div>
+                    <h6>Thanh toán khi nhận hàng</h6>
+                    <p>Kiểm tra hàng rồi mới thanh toán (COD)</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 col-sm-6">
+                <div class="single-features">
+                    <div class="f-icon store-feature__icon"><i class="fa fa-check-circle" aria-hidden="true"></i></div>
+                    <h6>Hàng chính hãng</h6>
+                    <p>@(Model.Brands.Count > 0 ? string.Join(", ", Model.Brands.Select(brand => brand.Name)) : "Từ các thương hiệu uy tín")</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 col-sm-6">
+                <div class="single-features">
+                    <div class="f-icon store-feature__icon"><i class="fa fa-shield" aria-hidden="true"></i></div>
+                    <h6>Bảo hành trực tuyến</h6>
+                    <p>Gửi yêu cầu bảo hành ngay trên website</p>
+                </div>
+            </div>
         </div>
     </div>
 </section>
-<!-- End brand Area -->
-<!-- Start related-product Area -->
-<section class="related-product-area section_gap_bottom">
+
+<!-- Categories from the database -->
+@if (Model.Categories.Count > 0)
+{
+    <section class="section_gap_bottom" id="categories">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-6 text-center">
+                    <div class="section-title">
+                        <h1>Danh mục sản phẩm</h1>
+                        <p>Chọn nhanh theo nhu cầu tập luyện và thi đấu.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="store-category-grid">
+                @foreach (var category in Model.Categories)
+                {
+                    <a class="store-category-card" asp-controller="Products" asp-action="Index" asp-route-categoryId="@category.Id">
+                        <span class="store-category-card__image">
+                            <img src="@Url.Content(category.ImageUrl ?? "~/img/logo.png")" alt="" loading="lazy" />
+                        </span>
+                        <span class="store-category-card__name">@category.Name</span>
+                        <span class="store-category-card__count">@category.ProductCount sản phẩm</span>
+                    </a>
+                }
+            </div>
+        </div>
+    </section>
+}
+
+<!-- Newest products -->
+<section class="section_gap_bottom" id="products">
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-lg-6 text-center">
                 <div class="section-title">
-                    <h1>Ưu đãi trong tuần</h1>
-                    <p>
-                        Chọn sản phẩm phù hợp cho buổi tập và thi đấu.
-                    </p>
+                    <h1>Sản phẩm mới</h1>
+                    <p>Những mẫu vừa về cửa hàng.</p>
                 </div>
             </div>
         </div>
         <div class="row">
-            <div class="col-lg-9">
-                <div class="row">
-                    <div class="col-lg-4 col-md-4 col-sm-6 mb-20">
-                        <div class="single-related-product d-flex">
-                            <a href="#"><img src="img/r1.jpg" alt=""></a>
-                            <div class="desc">
-                                <a href="#" class="title">Giày thể thao</a>
-                                <div class="price">
-                                    <h6>$189.00</h6>
-                                    <h6 class="l-through">$210.00</h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-4 col-md-4 col-sm-6 mb-20">
-                        <div class="single-related-product d-flex">
-                            <a href="#"><img src="img/r2.jpg" alt=""></a>
-                            <div class="desc">
-                                <a href="#" class="title">Giày thể thao</a>
-                                <div class="price">
-                                    <h6>$189.00</h6>
-                                    <h6 class="l-through">$210.00</h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-4 col-md-4 col-sm-6 mb-20">
-                        <div class="single-related-product d-flex">
-                            <a href="#"><img src="img/r3.jpg" alt=""></a>
-                            <div class="desc">
-                                <a href="#" class="title">Giày thể thao</a>
-                                <div class="price">
-                                    <h6>$189.00</h6>
-                                    <h6 class="l-through">$210.00</h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-4 col-md-4 col-sm-6 mb-20">
-                        <div class="single-related-product d-flex">
-                            <a href="#"><img src="img/r5.jpg" alt=""></a>
-                            <div class="desc">
-                                <a href="#" class="title">Giày thể thao</a>
-                                <div class="price">
-                                    <h6>$189.00</h6>
-                                    <h6 class="l-through">$210.00</h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-4 col-md-4 col-sm-6 mb-20">
-                        <div class="single-related-product d-flex">
-                            <a href="#"><img src="img/r6.jpg" alt=""></a>
-                            <div class="desc">
-                                <a href="#" class="title">Giày thể thao</a>
-                                <div class="price">
-                                    <h6>$189.00</h6>
-                                    <h6 class="l-through">$210.00</h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-4 col-md-4 col-sm-6 mb-20">
-                        <div class="single-related-product d-flex">
-                            <a href="#"><img src="img/r7.jpg" alt=""></a>
-                            <div class="desc">
-                                <a href="#" class="title">Giày thể thao</a>
-                                <div class="price">
-                                    <h6>$189.00</h6>
-                                    <h6 class="l-through">$210.00</h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-4 col-md-4 col-sm-6">
-                        <div class="single-related-product d-flex">
-                            <a href="#"><img src="img/r9.jpg" alt=""></a>
-                            <div class="desc">
-                                <a href="#" class="title">Giày thể thao</a>
-                                <div class="price">
-                                    <h6>$189.00</h6>
-                                    <h6 class="l-through">$210.00</h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-4 col-md-4 col-sm-6">
-                        <div class="single-related-product d-flex">
-                            <a href="#"><img src="img/r10.jpg" alt=""></a>
-                            <div class="desc">
-                                <a href="#" class="title">Giày thể thao</a>
-                                <div class="price">
-                                    <h6>$189.00</h6>
-                                    <h6 class="l-through">$210.00</h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-4 col-md-4 col-sm-6">
-                        <div class="single-related-product d-flex">
-                            <a href="#"><img src="img/r11.jpg" alt=""></a>
-                            <div class="desc">
-                                <a href="#" class="title">Giày thể thao</a>
-                                <div class="price">
-                                    <h6>$189.00</h6>
-                                    <h6 class="l-through">$210.00</h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            @if (Model.LatestProducts.Count == 0)
+            {
+                <div class="col-12 text-center"><p>Hiện chưa có sản phẩm nào đang bán.</p></div>
+            }
+            @foreach (var product in Model.LatestProducts)
+            {
+                <div class="col-lg-3 col-md-4 col-6">
+                    <partial name="_ProductCard" model="product" />
                 </div>
-            </div>
-            <div class="col-lg-3">
-                <div class="ctg-right">
-                    <a href="#" target="_blank">
-                        <img class="img-fluid d-block mx-auto" src="img/category/c5.jpg" alt="">
-                    </a>
-                </div>
-            </div>
+            }
+        </div>
+        <div class="text-center">
+            <a asp-controller="Products" asp-action="Index" class="primary-btn">Xem tất cả sản phẩm</a>
         </div>
     </div>
 </section>
-<!-- End related-product Area -->
+
+<!-- Best sellers: only shown once the shop has real sales -->
+@if (Model.BestSellers.Count > 0)
+{
+    <section class="section_gap_bottom">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-6 text-center">
+                    <div class="section-title">
+                        <h1>Bán chạy</h1>
+                        <p>Được khách hàng đặt mua nhiều nhất.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                @foreach (var product in Model.BestSellers)
+                {
+                    <div class="col-lg-3 col-md-4 col-6">
+                        <partial name="_ProductCard" model="product" />
+                    </div>
+                }
+            </div>
+        </div>
+    </section>
+}
+
+<!-- Brands from the database -->
+@if (Model.Brands.Count > 0)
+{
+    <section class="section_gap_bottom">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-6 text-center">
+                    <div class="section-title">
+                        <h1>Thương hiệu</h1>
+                        <p>Sản phẩm chính hãng từ các thương hiệu cầu lông hàng đầu.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="store-brand-grid">
+                @foreach (var brand in Model.Brands)
+                {
+                    <a class="store-brand-card" asp-controller="Products" asp-action="Index" asp-route-brandId="@brand.Id">
+                        <span class="store-brand-card__name">@brand.Name</span>
+                        <span class="store-brand-card__desc">@Shorten(brand.Description, 110)</span>
+                        <span class="store-brand-card__count">@brand.ProductCount sản phẩm <span class="lnr lnr-arrow-right"></span></span>
+                    </a>
+                }
+            </div>
+        </div>
+    </section>
+}
+
 @section Styles {
     <link rel="stylesheet" href="~/css/main.css" />
 }

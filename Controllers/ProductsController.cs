@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PopPop.Models;
 using PopPop.Services.Interfaces;
 
 namespace PopPop.Controllers;
@@ -8,6 +7,8 @@ namespace PopPop.Controllers;
 [AllowAnonymous]
 public class ProductsController : Controller
 {
+    private const int MaxSpecIds = 30;
+    private const int LiveResultCount = 6;
     private readonly IProductService _productService;
 
     public ProductsController(IProductService productService)
@@ -19,19 +20,23 @@ public class ProductsController : Controller
     public async Task<IActionResult> Index(
         int page = 1,
         int? categoryId = null,
+        int? brandId = null,
         string? q = null,
         decimal? minPrice = null,
         decimal? maxPrice = null,
         string? sort = null,
+        [FromQuery(Name = "spec")] int[]? spec = null,
         CancellationToken cancellationToken = default)
     {
         var model = await _productService.GetCatalogAsync(
             page,
             categoryId,
+            brandId,
             q,
             minPrice,
             maxPrice,
             sort,
+            LimitSpecIds(spec),
             cancellationToken);
         return View(model);
     }
@@ -43,15 +48,31 @@ public class ProductsController : Controller
         return product is null ? NotFound() : View(product);
     }
 
+    /// <summary>Live results for the header search panel.</summary>
     [HttpGet]
-    public async Task<IActionResult> Search(string q, CancellationToken cancellationToken)
+    public async Task<IActionResult> Search(
+        string? q,
+        int? categoryId,
+        int? brandId,
+        decimal? minPrice,
+        decimal? maxPrice,
+        [FromQuery(Name = "spec")] int[]? spec,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(q))
-        {
-            return PartialView("_SearchResults", Array.Empty<ProductCardViewModel>());
-        }
-
-        var results = await _productService.SearchAsync(q, 6, cancellationToken);
+        var results = await _productService.SearchAsync(
+            categoryId, brandId, q, minPrice, maxPrice, LimitSpecIds(spec), LiveResultCount,
+            Url.Action(nameof(Index), "Products") ?? "/Products", cancellationToken);
         return PartialView("_SearchResults", results);
     }
-} 
+
+    /// <summary>Brand and specification chips of a category for the header search panel.</summary>
+    [HttpGet]
+    public async Task<IActionResult> SearchFilters(int? categoryId, CancellationToken cancellationToken)
+    {
+        var filters = await _productService.GetSearchFiltersAsync(categoryId, cancellationToken);
+        return PartialView("_SearchFilters", filters);
+    }
+
+    private static int[] LimitSpecIds(int[]? spec) =>
+        spec is null ? [] : spec.Where(id => id > 0).Distinct().Take(MaxSpecIds).ToArray();
+}

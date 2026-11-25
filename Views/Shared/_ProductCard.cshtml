@@ -1,0 +1,11 @@
+@model PopPop.Models.ProductCardViewModel
+<div class="single-product store-product-card">
+    <a asp-controller="Products" asp-action="Details" asp-route-id="@Model.Id" class="store-product-card__image">
+        <img src="@Url.Content(string.IsNullOrWhiteSpace(Model.ImageUrl) ? "~/img/logo.png" : Model.ImageUrl)"
+             alt="@Model.Name" loading="lazy" />
+    </a>
+    <div class="product-details">
+        <h6><a asp-controller="Products" asp-action="Details" asp-route-id="@Model.Id" class="store-product-card__name">@Model.Name</a></h6>
+        <div class="price"><h6>@(Model.Price > 0 ? $"{Model.Price:N0} ₫" : "Liên hệ")</h6></div>
+    </div>
+</div>

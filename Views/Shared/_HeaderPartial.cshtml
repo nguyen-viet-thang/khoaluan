@@ -3,18 +3,17 @@
 @inject IHeaderBadgeService HeaderBadgeService
 
 @{
-    var cartQuantity = 0;
-    var unreadChatCount = 0;
+    var badges = new PopPop.Models.HeaderBadges();
     var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var isCustomer = !string.IsNullOrEmpty(currentUserId) && !User.IsInRole("Admin") && !User.IsInRole("Staff");
 
-    if (!string.IsNullOrEmpty(currentUserId) && !User.IsInRole("Admin") && !User.IsInRole("Staff"))
+    if (isCustomer)
     {
-        var counts = await HeaderBadgeService.GetCountsAsync(currentUserId, Context.RequestAborted);
-        cartQuantity = counts.CartQuantity;
-        unreadChatCount = counts.UnreadChatCount;
+        badges = await HeaderBadgeService.GetCountsAsync(currentUserId!, Context.RequestAborted);
     }
 
-    ViewData["UnreadChatCount"] = unreadChatCount;
+    var cartQuantity = badges.CartQuantity;
+    var bellCount = badges.UnreadNotificationCount;
 }
 
 <header class="header_area store-header">
@@ -34,7 +33,9 @@
                     <ul class="navbar-nav store-header__links">
                         <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index">Trang chủ</a></li>
                         <li class="nav-item"><a class="nav-link" asp-controller="Products" asp-action="Index">Sản phẩm</a></li>
-                        <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index" asp-fragment="shop">Cửa hàng</a></li>
+                        <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index" asp-fragment="categories">Danh mục</a></li>
+                        @* Guests are sent to login first, then back to the order-code form. *@
+                        <li class="nav-item"><a class="nav-link" asp-area="" asp-controller="Claims" asp-action="Start">Bảo hành</a></li>
                         <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index" asp-fragment="contact">Liên hệ</a></li>
                     </ul>
                     <ul class="navbar-nav store-header__actions">
@@ -43,15 +44,45 @@
                                 <span class="lnr lnr-magnifier" id="search"></span>
                             </button>
                         </li>
-                        <li class="nav-item">
+                        <li class="nav-item store-notify">
                             <button class="store-header__icon store-header__notification" id="store-notifications" type="button"
-                                    aria-label="Thông báo hỗ trợ" title="Thông báo">
+                                    aria-label="Thông báo, @bellCount mục chưa đọc" title="Thông báo"
+                                    aria-haspopup="true" aria-expanded="false" data-has-panel="@(isCustomer ? "true" : "false")"
+                                    data-hub-url="@Url.Content("~/hubs/notifications")" data-guest-url="@Url.Action("Index", "Notifications", new { area = "" })">
                                 <i class="fa fa-bell" aria-hidden="true"></i>
-                                @if (unreadChatCount > 0)
-                                {
-                                    <span class="store-header__badge" aria-hidden="true">@(unreadChatCount > 99 ? "99+" : unreadChatCount.ToString())</span>
-                                }
+                                <span class="store-header__badge" id="store-notifications-badge" aria-hidden="true" hidden="@(bellCount == 0)">@(bellCount > 99 ? "99+" : bellCount.ToString())</span>
                             </button>
+                            @if (isCustomer)
+                            {
+                                <div class="store-notify__panel" id="store-notify-panel" hidden role="dialog" aria-label="Thông báo">
+                                    <div class="store-notify__head">
+                                        <strong>Thông báo</strong>
+                                        @if (badges.UnreadNotificationCount > 0)
+                                        {
+                                            <form asp-area="" asp-controller="Notifications" asp-action="MarkAllRead" method="post" class="m-0">
+                                                <button type="submit" class="store-notify__link">Đánh dấu đã đọc</button>
+                                            </form>
+                                        }
+                                    </div>
+                                    <ul class="store-notify__list" id="store-notify-list">
+                                        @foreach (var item in badges.RecentNotifications)
+                                        {
+                                            <li>
+                                                <a class="store-notify__item @(item.IsRead ? string.Empty : "is-unread")" asp-area="" asp-controller="Notifications" asp-action="Open" asp-route-id="@item.Id">
+                                                    <span class="store-notify__title">@item.Title</span>
+                                                    @if (!string.IsNullOrWhiteSpace(item.Message)) { <span class="store-notify__message">@item.Message</span> }
+                                                    <span class="store-notify__time">@PopPop.Services.Implementations.ShopClock.ToLocal(item.CreatedAt).ToString("dd/MM HH:mm")</span>
+                                                </a>
+                                            </li>
+                                        }
+                                    </ul>
+                                    @if (badges.RecentNotifications.Count == 0)
+                                    {
+                                        <p class="store-notify__empty" id="store-notify-empty">Chưa có thông báo nào.</p>
+                                    }
+                                    <a class="store-notify__all" asp-area="" asp-controller="Notifications" asp-action="Index">Xem tất cả thông báo</a>
+                                </div>
+                            }
                         </li>
                         <li class="nav-item">
                             <a asp-controller="Cart" asp-action="Index" class="store-header__icon store-header__cart"
@@ -69,14 +100,41 @@
             </div>
         </nav>
     </div>
-    <div class="search_input" id="search_input_box" aria-live="polite">
+    <div class="search_input" id="search_input_box">
         <div class="container search-panel">
-            <div class="search-form">
-                <input type="text" class="form-control" id="search_input" placeholder="Tìm sản phẩm bạn muốn..." autocomplete="off">
-                <button type="button" class="btn btn-link search-clear" id="clear_search" aria-label="Xóa tìm kiếm">×</button>
-                <span class="lnr lnr-cross" id="close_search" title="Đóng tìm kiếm" role="button" tabindex="0"></span>
-            </div>
-            <div id="search_results" class="search-results" hidden></div>
+            <form id="search-form" asp-controller="Products" asp-action="Index" method="get" role="search"
+                  data-filters-url="@Url.Action("SearchFilters", "Products")" data-results-url="@Url.Action("Search", "Products")">
+                <div class="search-form">
+                    <input type="search" name="q" class="form-control" id="search_input" maxlength="100"
+                           placeholder="Tìm sản phẩm, VD: vợt yonex nhẹ đầu, giày 42..." autocomplete="off" aria-label="Từ khóa">
+                    <button type="button" class="btn btn-link search-clear" id="clear_search" aria-label="Xóa từ khóa">×</button>
+                    <span class="lnr lnr-cross" id="close_search" title="Đóng tìm kiếm" role="button" tabindex="0"></span>
+                </div>
+                <div class="search-advanced">
+                    <div class="search-advanced__head">
+                        <button type="button" class="search-advanced__toggle" id="search-advanced-toggle" aria-expanded="true" aria-controls="search-advanced-body">
+                            <i class="fa fa-sliders" aria-hidden="true"></i> Tìm theo loại &amp; thông số
+                        </button>
+                        <button type="button" class="search-advanced__reset" id="search-reset">Xóa bộ lọc</button>
+                    </div>
+                    <div class="search-advanced__body" id="search-advanced-body">
+                        <div id="search-filters"><div class="search-empty">Đang tải bộ lọc...</div></div>
+                        <fieldset class="search-filter">
+                            <legend>Khoảng giá</legend>
+                            <div class="search-chips" id="search-price">
+                                <label class="search-chip"><input type="radio" name="search-price" value="" checked /><span>Tất cả</span></label>
+                                <label class="search-chip"><input type="radio" name="search-price" value="0-500000" /><span>Dưới 500.000 ₫</span></label>
+                                <label class="search-chip"><input type="radio" name="search-price" value="500000-1500000" /><span>500.000 – 1,5 triệu</span></label>
+                                <label class="search-chip"><input type="radio" name="search-price" value="1500000-3000000" /><span>1,5 – 3 triệu</span></label>
+                                <label class="search-chip"><input type="radio" name="search-price" value="3000000-" /><span>Trên 3 triệu</span></label>
+                            </div>
+                            <input type="hidden" name="minPrice" id="search-min-price" disabled />
+                            <input type="hidden" name="maxPrice" id="search-max-price" disabled />
+                        </fieldset>
+                    </div>
+                </div>
+                <div id="search_results" class="search-results" aria-live="polite" hidden></div>
+            </form>
         </div>
     </div>
 </header>
