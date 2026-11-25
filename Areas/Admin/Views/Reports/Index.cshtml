@@ -1,0 +1,197 @@
+@model PopPop.Models.ReportViewModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Báo cáo thống kê";
+    var presets = new[] { ("7d", "7 ngày"), ("30d", "30 ngày"), ("this-month", "Tháng này"), ("last-month", "Tháng trước"), ("this-year", "Năm nay") };
+    var dateFormat = "yyyy-MM-dd";
+    var exportFrom = Model.From.ToString(dateFormat);
+    var exportTo = Model.To.ToString(dateFormat);
+}
+<div class="admin-page-heading">
+    <div>
+        <h2>Báo cáo bán hàng</h2>
+        <p>Từ @Model.From.ToString("dd/MM/yyyy") đến @Model.To.ToString("dd/MM/yyyy") · doanh thu tính theo ngày giao hàng thành công (đã thu tiền COD).</p>
+    </div>
+    <a class="btn btn-success" asp-area="Admin" asp-controller="Reports" asp-action="Export" asp-route-from="@exportFrom" asp-route-to="@exportTo">
+        <i class="fa fa-file-excel-o me-2"></i>Xuất Excel
+    </a>
+</div>
+
+<div class="admin-toolbar">
+    <div class="btn-group" role="group" aria-label="Khoảng thời gian nhanh">
+        @foreach (var (key, label) in presets)
+        {
+            <a class="btn btn-sm @(Model.Preset == key ? "btn-primary" : "btn-outline-primary")" asp-area="Admin" asp-controller="Reports" asp-action="Index" asp-route-preset="@key">@label</a>
+        }
+    </div>
+    <form method="get" class="d-flex flex-wrap gap-2 align-items-center">
+        <label for="from" class="mb-0">Từ</label>
+        <input id="from" name="from" type="date" class="form-control" value="@exportFrom" style="max-width:170px" />
+        <label for="to" class="mb-0">đến</label>
+        <input id="to" name="to" type="date" class="form-control" value="@exportTo" style="max-width:170px" />
+        <button class="btn btn-primary" type="submit">Xem báo cáo</button>
+    </form>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3"><div class="admin-stat-card">
+        <span class="admin-stat-icon"><i class="fa fa-money"></i></span>
+        <div class="admin-stat-label">Doanh thu</div>
+        <div class="admin-stat-value">@Model.Revenue.ToString("N0") ₫</div>
+        <div class="admin-stat-note">
+            @if (Model.RevenueChangePercent is double change)
+            {
+                <span class="@(change >= 0 ? "text-success" : "text-danger")"><i class="fa @(change >= 0 ? "fa-arrow-up" : "fa-arrow-down")"></i> @Math.Abs(change)%</span>
+                <span>so với kỳ trước</span>
+            }
+            else
+            {
+                <span>Kỳ trước: @Model.PreviousRevenue.ToString("N0") ₫</span>
+            }
+        </div>
+    </div></div>
+    <div class="col-6 col-xl-3"><div class="admin-stat-card">
+        <span class="admin-stat-icon"><i class="fa fa-shopping-bag"></i></span>
+        <div class="admin-stat-label">Đơn đặt / giao thành công</div>
+        <div class="admin-stat-value">@Model.OrdersPlaced / @Model.OrdersCompleted</div>
+        <div class="admin-stat-note">@Model.OrdersCancelled đơn hủy (@Model.CancellationRate%)</div>
+    </div></div>
+    <div class="col-6 col-xl-3"><div class="admin-stat-card">
+        <span class="admin-stat-icon"><i class="fa fa-calculator"></i></span>
+        <div class="admin-stat-label">Giá trị đơn trung bình</div>
+        <div class="admin-stat-value">@Model.AverageOrderValue.ToString("N0") ₫</div>
+        <div class="admin-stat-note">Phí giao hàng đã thu: @Model.ShippingRevenue.ToString("N0") ₫</div>    </div></div>
+    <div class="col-6 col-xl-3"><div class="admin-stat-card">
+        <span class="admin-stat-icon"><i class="fa fa-cubes"></i></span>
+        <div class="admin-stat-label">Sản phẩm bán ra</div>
+        <div class="admin-stat-value">@Model.ItemsSold</div>
+        <div class="admin-stat-note">@Model.NewCustomers khách hàng mới</div>
+    </div></div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-8">
+        <div class="admin-chart-card">
+            <h3>Doanh thu và số đơn theo @(Model.GroupByMonth ? "tháng" : "ngày")</h3>
+            <div class="admin-chart-container"><canvas id="report-timeline-chart" aria-label="Biểu đồ doanh thu và số đơn"></canvas></div>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="admin-chart-card">
+            <h3>Doanh thu theo danh mục</h3>
+            @if (Model.Categories.Count == 0)
+            {
+                <div class="admin-empty">Chưa có đơn giao thành công trong kỳ.</div>
+            }
+            else
+            {
+                <div class="admin-chart-container"><canvas id="report-category-chart" aria-label="Biểu đồ doanh thu theo danh mục"></canvas></div>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-7">
+        <div class="admin-panel h-100">
+            <div class="admin-panel-header"><h3>Sản phẩm bán chạy</h3><span class="admin-stat-note">Top @Model.TopProducts.Count theo số lượng</span></div>
+            @if (Model.TopProducts.Count == 0)
+            {
+                <div class="admin-empty">Chưa có sản phẩm nào được giao thành công trong kỳ.</div>
+            }
+            else
+            {
+                <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>#</th><th>Sản phẩm</th><th>Danh mục</th><th>Số lượng</th><th>Doanh thu</th></tr></thead><tbody>
+                @for (var index = 0; index < Model.TopProducts.Count; index++)
+                {
+                    var product = Model.TopProducts[index];
+                    <tr>
+                        <td>@(index + 1)</td>
+                        <td class="admin-wrap"><a class="admin-link" asp-area="Admin" asp-controller="Products" asp-action="Edit" asp-route-id="@product.ProductId">@product.ProductName</a></td>
+                        <td>@product.CategoryName</td>
+                        <td>@product.Quantity</td>
+                        <td>@product.Revenue.ToString("N0") ₫</td>
+                    </tr>
+                }
+                </tbody></table></div>
+            }
+        </div>
+    </div>
+    <div class="col-xl-5">
+        <div class="admin-panel h-100">
+            <div class="admin-panel-header"><h3>Sắp hết hàng</h3><span class="admin-stat-note">Tồn kho ≤ @Model.LowStockThreshold</span></div>
+            @if (Model.LowStock.Count == 0)
+            {
+                <div class="admin-empty">Không có phiên bản nào sắp hết hàng.</div>
+            }
+            else
+            {
+                <div class="admin-table-wrap" style="max-height:420px;overflow-y:auto"><table class="admin-table"><thead><tr><th>Sản phẩm</th><th>Phiên bản</th><th>Tồn</th></tr></thead><tbody>
+                @foreach (var row in Model.LowStock)
+                {
+                    <tr>
+                        <td class="admin-wrap"><a class="admin-link" asp-area="Admin" asp-controller="Products" asp-action="Edit" asp-route-id="@row.ProductId">@row.ProductName</a><div class="admin-stat-note">@row.SKU</div></td>
+                        <td>@(row.VariantLabel ?? "—")</td>
+                        <td><span class="admin-status @(row.StockQuantity == 0 ? "status-cancelled" : "status-pending")">@(row.StockQuantity == 0 ? "Hết hàng" : row.StockQuantity.ToString())</span></td>
+                    </tr>
+                }
+                </tbody></table></div>
+            }
+        </div>
+    </div>
+</div>
+
+@if (Model.Categories.Count > 0)
+{
+    <div class="admin-panel mb-4">
+        <div class="admin-panel-header"><h3>Chi tiết theo danh mục</h3></div>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Danh mục</th><th>Số lượng bán</th><th>Doanh thu hàng hóa</th><th>Tỷ trọng</th></tr></thead><tbody>
+        @foreach (var category in Model.Categories)
+        {
+            <tr><td>@category.CategoryName</td><td>@category.Quantity</td><td>@category.Revenue.ToString("N0") ₫</td><td>@category.SharePercent%</td></tr>
+        }
+        </tbody></table></div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        (function () {
+            const timeline = @Html.Raw(JsonSerializer.Serialize(Model.Timeline.Select(point => new { point.Label, point.Revenue, point.OrdersPlaced, point.OrdersCompleted })));
+            const categories = @Html.Raw(JsonSerializer.Serialize(Model.Categories.Select(category => new { category.CategoryName, category.Revenue })));
+            const money = value => new Intl.NumberFormat('vi-VN').format(value) + ' ₫';
+
+            new Chart(document.getElementById('report-timeline-chart'), {
+                type: 'bar',
+                data: {
+                    labels: timeline.map(point => point.Label),
+                    datasets: [
+                        { type: 'bar', label: 'Doanh thu', data: timeline.map(point => point.Revenue), backgroundColor: 'rgba(57, 119, 232, 0.75)', yAxisID: 'revenue' },
+                        { type: 'line', label: 'Đơn đặt', data: timeline.map(point => point.OrdersPlaced), borderColor: '#f59e0b', backgroundColor: '#f59e0b', tension: 0, pointRadius: 2, yAxisID: 'orders' }
+                    ]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        revenue: { position: 'left', beginAtZero: true, ticks: { callback: value => new Intl.NumberFormat('vi-VN', { notation: 'compact' }).format(value) } },
+                        orders: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, ticks: { precision: 0 } }
+                    },
+                    plugins: { tooltip: { callbacks: { label: context => context.dataset.yAxisID === 'revenue' ? `Doanh thu: ${money(context.parsed.y)}` : `Đơn đặt: ${context.parsed.y}` } } }
+                }
+            });
+
+            const categoryCanvas = document.getElementById('report-category-chart');
+            if (categoryCanvas) {
+                new Chart(categoryCanvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: categories.map(category => category.CategoryName),
+                        datasets: [{ data: categories.map(category => category.Revenue), backgroundColor: ['#3977e8', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#64748b'] }]
+                    },
+                    options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: context => `${context.label}: ${money(context.parsed)}` } } } }
+                });
+            }
+        })();
+    </script>
+}
