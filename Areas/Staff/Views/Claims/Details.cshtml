@@ -1,0 +1,225 @@
+@model PopPop.Models.ClaimDetailsViewModel
+@using PopPop.Data.Entities.Enums
+@using PopPop.Models
+@using PopPop.Services.Implementations
+@{
+    ViewData["Title"] = $"Yêu cầu {Model.Code}";
+    var canShip = Model.AllowedNextStatuses.Contains(ClaimStatus.ReturningToCustomer);
+    var needsOutbound = canShip || (Model.ItemAtShop && Model.AllowedNextStatuses.Contains(ClaimStatus.Rejected));
+}
+<div class="admin-page-heading">
+    <div>
+        <h2>Yêu cầu @Model.Code</h2>
+        <p><span class="admin-status @ClaimDisplay.StatusClass(Model.Status)">@ClaimDisplay.StatusText(Model.Status)</span> · @ClaimDisplay.TypeText(Model.Type) · gửi lúc @ShopClock.ToLocal(Model.CreatedAt).ToString("dd/MM/yyyy HH:mm")</p>
+    </div>
+    <a class="btn btn-outline-secondary" asp-area="Staff" asp-controller="Claims" asp-action="Index"><i class="fa fa-arrow-left me-1"></i>Danh sách</a>
+</div>
+
+<div class="admin-order-grid mb-4">
+    <section class="admin-detail-card">
+        <h3>Sản phẩm &amp; lỗi</h3>
+        <div class="admin-detail-row"><span>Sản phẩm</span><strong>@Model.ProductName</strong></div>
+        <div class="admin-detail-row"><span>SKU · số lượng</span><span>@Model.SKU · @Model.Quantity</span></div>
+        <div class="admin-detail-row"><span>Đơn giá</span><span>@Model.UnitPrice.ToString("N0") ₫</span></div>
+        <div class="admin-detail-row"><span>Loại lỗi</span><strong>@Model.DefectCode – @Model.DefectName</strong></div>
+        <div class="admin-detail-row"><span>Số serial</span><span>@(Model.SerialNumber ?? "Không cung cấp")</span></div>
+        <div class="admin-detail-row"><span>Ngày giao hàng</span><span>@ShopClock.ToLocal(Model.DeliveredAt).ToString("dd/MM/yyyy")</span></div>
+        <div class="admin-detail-row"><span>Hạn @(Model.Type == ClaimType.Warranty ? "bảo hành" : "báo lỗi")</span><span>@ShopClock.ToLocal(Model.DeadlineAt).ToString("dd/MM/yyyy")</span></div>
+        <div class="mt-2"><strong>Mô tả của khách:</strong><div style="white-space:pre-line">@Model.Description</div></div>
+        @if (!string.IsNullOrWhiteSpace(Model.EvidenceGuide))
+        {
+            <div class="admin-stat-note mt-2">Minh chứng yêu cầu cho loại lỗi này: @Model.EvidenceGuide</div>
+        }
+    </section>
+    <section class="admin-detail-card">
+        <h3>Khách hàng</h3>
+        <div class="admin-detail-row"><span>Họ tên</span><strong>@Model.CustomerName</strong></div>
+        <div class="admin-detail-row"><span>SĐT tài khoản</span><span>@Model.CustomerAccountPhone</span></div>
+        <div class="admin-detail-row"><span>Điện thoại nhận hàng</span><span>@Model.CustomerPhone</span></div>
+        <div class="admin-detail-row"><span>Đơn hàng</span><a class="admin-link" asp-area="Staff" asp-controller="Orders" asp-action="Details" asp-route-id="@Model.OrderId">@Model.OrderCode</a></div>
+        <div class="admin-detail-row"><span>Địa chỉ giao (đơn gốc)</span><span>@Model.DeliveryName · @Model.DeliveryAddress</span></div>
+        @if (Model.Resolution is { } resolution)
+        {
+            <div class="admin-detail-row"><span>Kết quả</span><strong>@ClaimDisplay.ResolutionText(resolution)</strong></div>
+        }
+        <form asp-area="Staff" asp-controller="Claims" asp-action="SaveNote" asp-route-id="@Model.Id" method="post" class="mt-3">
+            <label class="form-label" for="staff-note">Ghi chú nội bộ (khách không thấy)</label>
+            <textarea id="staff-note" name="note" class="form-control mb-2" rows="3" maxlength="2000">@Model.StaffNote</textarea>
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Lưu ghi chú</button>
+        </form>
+    </section>
+</div>
+
+<div class="admin-order-grid mb-4">
+    <section class="admin-detail-card">
+        <h3>Vận chuyển</h3>
+        <div class="admin-detail-row"><span>Khách gửi về</span>
+            <span>@(Model.ReturnShippedAt is { } inAt ? $"{ClaimDisplay.ShipmentText(Model.ReturnCarrier, Model.ReturnTrackingCode)} · {ShopClock.ToLocal(inAt):dd/MM HH:mm}" : "Chưa báo gửi")</span></div>
+        <div class="admin-detail-row"><span>Cửa hàng gửi cho khách</span>
+            <span>@(Model.OutboundShippedAt is { } outAt ? $"{ClaimDisplay.ShipmentText(Model.OutboundCarrier, Model.OutboundTrackingCode)} · {ShopClock.ToLocal(outAt):dd/MM HH:mm}" : "—")</span></div>
+        <div class="admin-detail-row"><span>Giao tới</span><span>@Model.DeliveryName · @Model.DeliveryPhone · @Model.DeliveryAddress</span></div>
+    </section>
+    <section class="admin-detail-card">
+        <h3>Chính sách xử lý</h3>
+        <p class="admin-stat-note mb-0">Cửa hàng <strong>không hoàn tiền</strong>. Yêu cầu hợp lệ: đổi sản phẩm mới từ kho (hoặc hãng thay thế khi bảo hành).
+            Không hợp lệ: từ chối kèm lý do; nếu sản phẩm đang ở cửa hàng/hãng thì phải gửi trả lại cho khách. Hết hàng để đổi: nhập thêm hàng rồi gửi.</p>
+    </section>
+</div>
+
+<div class="admin-panel mb-4">
+    <div class="admin-panel-header"><h3>Video / ảnh minh chứng (@Model.Media.Count)</h3></div>
+    <div class="p-3">
+        <div class="row g-3">
+            @foreach (var media in Model.Media)
+            {
+                <div class="col-md-6">
+                    @if (media.Kind == ClaimMediaKind.Video)
+                    {
+                        <video controls preload="metadata" style="width:100%;max-height:380px;background:#000;border-radius:8px" src="@Url.Action("Media", "Claims", new { area = "Staff", id = media.Id })"></video>
+                    }
+                    else
+                    {
+                        <a href="@Url.Action("Media", "Claims", new { area = "Staff", id = media.Id })" target="_blank"><img src="@Url.Action("Media", "Claims", new { area = "Staff", id = media.Id })" alt="@media.OriginalFileName" style="width:100%;max-height:380px;object-fit:contain;border-radius:8px;background:#f5f7fb" /></a>
+                    }
+                    <div class="admin-stat-note">@media.OriginalFileName · @ClaimDisplay.FileSize(media.SizeBytes) · @ShopClock.ToLocal(media.UploadedAt).ToString("dd/MM/yyyy HH:mm")</div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-7">
+        @if (Model.AllowedNextStatuses.Count > 0)
+        {
+            <section class="admin-detail-card">
+                <h3>Xử lý yêu cầu</h3>
+                <form asp-area="Staff" asp-controller="Claims" asp-action="Decide" asp-route-id="@Model.Id" method="post" id="decision-form">
+                    <div class="mb-3">
+                        <label class="form-label" for="next-status">Thao tác</label>
+                        <select class="form-select" name="NextStatus" id="next-status" required>
+                            <option value="">-- Chọn thao tác --</option>
+                            @foreach (var status in Model.AllowedNextStatuses)
+                            {
+                                <option value="@status">@ClaimDisplay.ActionText(status)</option>
+                            }
+                        </select>
+                    </div>
+                    @if (canShip)
+                    {
+                        <fieldset id="ship-fields" class="mb-1" hidden disabled>
+                            <div class="mb-3">
+                                <label class="form-label">Sản phẩm thay thế</label>
+                                @if (Model.Type == ClaimType.ReceiptDefect)
+                                {
+                                    <div class="form-check"><input class="form-check-input" type="radio" name="Resolution" id="r-exchange" value="@ClaimResolution.ExchangedByShop" checked /><label class="form-check-label" for="r-exchange">Đổi sản phẩm mới từ kho (còn @Model.AvailableStock, trừ @Model.Quantity)</label></div>
+                                }
+                                else
+                                {
+                                    <div class="form-check"><input class="form-check-input" type="radio" name="Resolution" id="r-brand" value="@ClaimResolution.ReplacedByBrand" /><label class="form-check-label" for="r-brand">Hãng thay thế sản phẩm (không trừ kho cửa hàng)</label></div>
+                                    <div class="form-check"><input class="form-check-input" type="radio" name="Resolution" id="r-exchange" value="@ClaimResolution.ExchangedByShop" /><label class="form-check-label" for="r-exchange">Cửa hàng đổi sản phẩm mới từ kho (còn @Model.AvailableStock, trừ @Model.Quantity)</label></div>
+                                }
+                            </div>
+                            @if (Model.Type == ClaimType.ReceiptDefect)
+                            {
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" name="RestockReturnedItem" id="restock-ship" value="true" />
+                                    <label class="form-check-label" for="restock-ship">Hàng khách trả về còn bán được (VD: giao nhầm, còn nguyên tem) – nhập lại kho</label>
+                                </div>
+                            }
+                        </fieldset>
+                    }
+                    @if (needsOutbound)
+                    {
+                        <fieldset id="outbound-fields" class="mb-1" hidden disabled>
+                            <div class="admin-stat-note mb-2" id="outbound-hint">Gửi tới: @Model.DeliveryName · @Model.DeliveryPhone · @Model.DeliveryAddress</div>
+                            <div class="row g-2 mb-3">
+                                <div class="col-sm-6">
+                                    <label class="form-label" for="out-carrier">Đơn vị vận chuyển</label>
+                                    <input class="form-control" name="OutboundCarrier" id="out-carrier" list="carrier-list" maxlength="100" required />
+                                    <datalist id="carrier-list">
+                                        @foreach (var carrier in ClaimDisplay.Carriers) { <option value="@carrier"></option> }
+                                        <option value="@ClaimDisplay.InPerson"></option>
+                                    </datalist>
+                                </div>
+                                <div class="col-sm-6">
+                                    <label class="form-label" for="out-tracking">Mã vận đơn</label>
+                                    <input class="form-control" name="OutboundTrackingCode" id="out-tracking" maxlength="100" placeholder="Bỏ trống nếu khách nhận tại cửa hàng" />
+                                </div>
+                            </div>
+                        </fieldset>
+                    }
+                    <div class="mb-3">
+                        <label class="form-label" for="decision-note">Lời nhắn cho khách <span id="note-required" class="text-danger" hidden>(bắt buộc)</span></label>
+                        <textarea class="form-control" name="Note" id="decision-note" rows="3" maxlength="2000"
+                                  placeholder="VD: Vui lòng gửi vợt về địa chỉ cửa hàng, giữ nguyên dây; hoặc lý do từ chối kèm căn cứ chính sách."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Cập nhật yêu cầu</button>
+                </form>
+            </section>
+        }
+        @if (Model.CanMessage)
+        {
+            <section class="admin-detail-card mt-3">
+                <h3>Nhắn cho khách (không đổi trạng thái)</h3>
+                <form asp-area="Staff" asp-controller="Claims" asp-action="SendMessage" asp-route-id="@Model.Id" method="post">
+                    <textarea class="form-control mb-2" name="message" rows="2" maxlength="2000" required
+                              placeholder="VD: Cửa hàng đang nhập lại mẫu này, sẽ gửi sản phẩm mới cho bạn trong 3–5 ngày."></textarea>
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Gửi lời nhắn</button>
+                </form>
+            </section>
+        }
+        else
+        {
+            <section class="admin-detail-card"><h3>Yêu cầu đã đóng</h3><p class="admin-stat-note mb-0">Đóng lúc @(Model.ClosedAt is { } closed ? ShopClock.ToLocal(closed).ToString("dd/MM/yyyy HH:mm") : "—").</p></section>
+        }
+    </div>
+    <div class="col-lg-5">
+        <section class="admin-detail-card">
+            <h3>Nhật ký xử lý</h3>
+            @foreach (var entry in Model.History)
+            {
+                <div class="admin-detail-row" style="display:block">
+                    <div class="d-flex justify-content-between"><strong>@(entry.IsUpdate ? (entry.ByStaff ? "Lời nhắn cho khách" : "Khách cập nhật") : ClaimDisplay.StatusText(entry.ToStatus))</strong><span class="admin-stat-note">@ShopClock.ToLocal(entry.CreatedAt).ToString("dd/MM HH:mm")</span></div>
+                    <div class="admin-stat-note">@entry.ActorName @(entry.ByStaff ? "(nhân viên)" : "(khách hàng)")</div>
+                    @if (!string.IsNullOrWhiteSpace(entry.Note)) { <div style="white-space:pre-line">@entry.Note</div> }
+                </div>
+            }
+        </section>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const select = document.getElementById('next-status');
+            if (!select) return;
+            const itemAtShop = @Json.Serialize(Model.ItemAtShop);
+            const inPerson = @Json.Serialize(ClaimDisplay.InPerson.ToLowerInvariant());
+            const approveNeedsNote = @Json.Serialize(Model.ShopAddress is null);
+            const noteRequired = document.getElementById('note-required');
+            const note = document.getElementById('decision-note');
+            const carrier = document.getElementById('out-carrier');
+            const tracking = document.getElementById('out-tracking');
+            // Hidden blocks are also disabled so their inputs are not posted.
+            function toggle(id, show) {
+                const block = document.getElementById(id);
+                if (block) { block.hidden = !show; block.disabled = !show; }
+            }
+            function sync() {
+                const value = select.value;
+                toggle('ship-fields', value === 'ReturningToCustomer');
+                toggle('outbound-fields', value === 'ReturningToCustomer' || (value === 'Rejected' && itemAtShop));
+                const needsNote = value === 'Rejected' || value === 'NeedMoreInfo' || (value === 'Approved' && approveNeedsNote);
+                noteRequired.hidden = !needsNote; note.required = needsNote;
+                if (tracking) tracking.required = carrier.value.trim() !== '' && carrier.value.trim().toLowerCase() !== inPerson;
+            }
+            select.addEventListener('change', sync);
+            if (carrier) carrier.addEventListener('input', sync);
+            document.getElementById('decision-form').addEventListener('submit', e => {
+                if (select.value === 'Rejected' && !confirm('Từ chối yêu cầu này? Khách hàng sẽ thấy lý do bạn ghi.')) e.preventDefault();
+            });
+            sync();
+        })();
+    </script>
+}

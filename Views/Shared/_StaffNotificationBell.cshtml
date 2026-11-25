@@ -1,0 +1,54 @@
+@model PopPop.Models.StaffBadges
+@using PopPop.Services.Implementations
+@* Back-office notification bell (Admin & Staff layouts). Uses the same element ids as the storefront bell,
+   so wwwroot/js/notifications.js drives both (panel toggle + real-time pushes). *@
+<div class="staff-notify">
+    <button class="staff-notify__button" id="store-notifications" type="button" title="Thông báo"
+            aria-label="Thông báo, @Model.UnreadNotificationCount chưa đọc" aria-haspopup="true" aria-expanded="false"
+            data-has-panel="true" data-hub-url="@Url.Content("~/hubs/notifications")">
+        <i class="fa fa-bell" aria-hidden="true"></i>
+        <span class="staff-notify__badge" id="store-notifications-badge" aria-hidden="true" hidden="@(Model.UnreadNotificationCount == 0)">@(Model.UnreadNotificationCount > 99 ? "99+" : Model.UnreadNotificationCount.ToString())</span>
+    </button>
+    <div class="store-notify__panel" id="store-notify-panel" hidden role="dialog" aria-label="Thông báo">
+        <div class="store-notify__head">
+            <strong>Thông báo</strong>
+            @if (Model.UnreadNotificationCount > 0)
+            {
+                <form asp-area="" asp-controller="Notifications" asp-action="MarkAllRead" method="post" class="m-0">
+                    <button type="submit" class="store-notify__link">Đánh dấu đã đọc</button>
+                </form>
+            }
+        </div>
+        @if (Model.PendingOrderCount > 0)
+        {
+            <a class="store-notify__item store-notify__chat" asp-area="Staff" asp-controller="Orders" asp-action="Index" asp-route-status="Pending">
+                <i class="fa fa-shopping-bag" aria-hidden="true"></i>
+                <span>@Model.PendingOrderCount đơn hàng đang chờ xác nhận</span>
+            </a>
+        }
+        @if (Model.PendingClaimCount > 0)
+        {
+            <a class="store-notify__item store-notify__chat" asp-area="Staff" asp-controller="Claims" asp-action="Index" asp-route-status="Submitted">
+                <i class="fa fa-wrench" aria-hidden="true"></i>
+                <span>@Model.PendingClaimCount yêu cầu bảo hành/đổi hàng đang chờ duyệt</span>
+            </a>
+        }
+        <ul class="store-notify__list" id="store-notify-list">
+            @foreach (var item in Model.RecentNotifications)
+            {
+                <li>
+                    <a class="store-notify__item @(item.IsRead ? string.Empty : "is-unread")" asp-area="" asp-controller="Notifications" asp-action="Open" asp-route-id="@item.Id">
+                        <span class="store-notify__title">@item.Title</span>
+                        @if (!string.IsNullOrWhiteSpace(item.Message)) { <span class="store-notify__message">@item.Message</span> }
+                        <span class="store-notify__time">@ShopClock.ToLocal(item.CreatedAt).ToString("dd/MM HH:mm")</span>
+                    </a>
+                </li>
+            }
+        </ul>
+        @if (Model.RecentNotifications.Count == 0)
+        {
+            <p class="store-notify__empty" id="store-notify-empty">Chưa có thông báo nào.</p>
+        }
+        <a class="store-notify__all" asp-area="Staff" asp-controller="Notifications" asp-action="Index">Xem tất cả thông báo</a>
+    </div>
+</div>

@@ -1,0 +1,44 @@
+@model PopPop.Models.NotificationListViewModel
+@using PopPop.Services.Implementations
+@{
+    ViewData["Title"] = "Thông báo";
+}
+<div class="admin-page-heading">
+    <div><h2>Thông báo</h2><p>@(Model.UnreadCount > 0 ? $"{Model.UnreadCount} thông báo chưa đọc" : "Đã đọc hết thông báo")</p></div>
+    @if (Model.UnreadCount > 0)
+    {
+        <form asp-area="" asp-controller="Notifications" asp-action="MarkAllRead" method="post">
+            <button type="submit" class="btn btn-outline-primary">Đánh dấu tất cả đã đọc</button>
+        </form>
+    }
+</div>
+<div class="admin-panel">
+    @if (Model.Items.Count == 0)
+    {
+        <div class="admin-empty">Chưa có thông báo nào. Khi khách gửi yêu cầu bảo hành/đổi hàng hoặc bổ sung minh chứng, thông báo sẽ xuất hiện tại đây.</div>
+    }
+    else
+    {
+        <ul class="store-notify__list" style="max-height:none">
+            @foreach (var item in Model.Items)
+            {
+                <li>
+                    <a class="store-notify__item @(item.IsRead ? string.Empty : "is-unread")" asp-area="" asp-controller="Notifications" asp-action="Open" asp-route-id="@item.Id">
+                        <span class="store-notify__title">@item.Title</span>
+                        @if (!string.IsNullOrWhiteSpace(item.Message)) { <span class="store-notify__message" style="-webkit-line-clamp:unset">@item.Message</span> }
+                        <span class="store-notify__time">@ShopClock.ToLocal(item.CreatedAt).ToString("dd/MM/yyyy HH:mm")</span>
+                    </a>
+                </li>
+            }
+        </ul>
+    }
+</div>
+@if (Model.TotalPages > 1)
+{
+    <nav class="mt-3"><ul class="pagination">
+        @for (var pageNumber = 1; pageNumber <= Model.TotalPages; pageNumber++)
+        {
+            <li class="page-item @(pageNumber == Model.PageNumber ? "active" : string.Empty)"><a class="page-link" asp-area="Staff" asp-controller="Notifications" asp-action="Index" asp-route-page="@pageNumber">@pageNumber</a></li>
+        }
+    </ul></nav>
+}

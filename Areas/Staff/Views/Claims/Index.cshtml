@@ -1,0 +1,51 @@
+@model PopPop.Models.ClaimListViewModel
+@using PopPop.Data.Entities.Enums
+@using PopPop.Models
+@using PopPop.Services.Implementations
+@{
+    ViewData["Title"] = "Bảo hành & đổi hàng";
+}
+<div class="admin-page-heading">
+    <div><h2>Yêu cầu bảo hành &amp; đổi hàng</h2><p>@Model.OpenCount yêu cầu đang chờ xử lý. Yêu cầu chờ lâu nhất được xếp lên đầu.</p></div>
+</div>
+<form class="admin-toolbar" method="get">
+    <input class="form-control" type="search" name="search" value="@Model.Search" placeholder="Mã yêu cầu, mã đơn, sản phẩm, khách hàng, SĐT" aria-label="Tìm yêu cầu" />
+    <select class="form-select" name="status" aria-label="Lọc trạng thái">
+        <option value="">Tất cả trạng thái</option>
+        @foreach (var status in ClaimDisplay.OrderedStatuses)
+        {
+            <option value="@status" selected="@(Model.Status == status)">@ClaimDisplay.StatusText(status)</option>
+        }
+    </select>
+    <select class="form-select" name="type" aria-label="Lọc loại">
+        <option value="">Tất cả loại</option>
+        <option value="@ClaimType.ReceiptDefect" selected="@(Model.Type == ClaimType.ReceiptDefect)">Lỗi khi nhận hàng</option>
+        <option value="@ClaimType.Warranty" selected="@(Model.Type == ClaimType.Warranty)">Bảo hành</option>
+    </select>
+    <button class="btn btn-primary" type="submit"><i class="fa fa-search me-1"></i>Lọc</button>
+    <a class="btn btn-outline-secondary" asp-area="Staff" asp-controller="Claims" asp-action="Index">Xóa lọc</a>
+</form>
+<div class="admin-panel">
+    <div class="admin-panel-header"><h3>@Model.Claims.Count yêu cầu</h3></div>
+    @if (Model.Claims.Count == 0)
+    {
+        <div class="admin-empty">Không có yêu cầu phù hợp.</div>
+    }
+    else
+    {
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Mã yêu cầu</th><th>Khách hàng</th><th>Sản phẩm / lỗi</th><th>Loại</th><th>Cập nhật</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+        @foreach (var claim in Model.Claims)
+        {
+            <tr>
+                <td><a class="admin-link" asp-area="Staff" asp-controller="Claims" asp-action="Details" asp-route-id="@claim.Id">@claim.Code</a><div class="admin-stat-note">Đơn @claim.OrderCode</div></td>
+                <td>@claim.CustomerName</td>
+                <td class="admin-wrap">@claim.ProductName<div class="admin-stat-note">@claim.DefectName</div></td>
+                <td>@ClaimDisplay.TypeText(claim.Type)</td>
+                <td>@ShopClock.ToLocal(claim.UpdatedAt).ToString("dd/MM/yyyy HH:mm")</td>
+                <td><span class="admin-status @ClaimDisplay.StatusClass(claim.Status)">@ClaimDisplay.StatusText(claim.Status)</span></td>
+                <td><a class="btn btn-sm btn-outline-primary" asp-area="Staff" asp-controller="Claims" asp-action="Details" asp-route-id="@claim.Id">Xử lý</a></td>
+            </tr>
+        }
+        </tbody></table></div>
+    }
+</div>
