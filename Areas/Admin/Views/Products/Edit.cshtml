@@ -1,0 +1,238 @@
+﻿@model PopPop.Models.ProductEditViewModel
+@using PopPop.Data.Entities.Enums
+@{
+    ViewData["Title"] = "Chỉnh sửa sản phẩm";
+    var productId = Model.Form.Id;
+    string TypeText(InventoryTransactionType type) => type switch
+    {
+        InventoryTransactionType.Import => "Nhập hàng",
+        InventoryTransactionType.Sale => "Bán hàng",
+        InventoryTransactionType.AdjustmentIncrease => "Điều chỉnh tăng",
+        InventoryTransactionType.AdjustmentDecrease => "Điều chỉnh giảm",
+        InventoryTransactionType.ClaimReplacement => "Xuất đổi bảo hành",
+        InventoryTransactionType.ClaimRestock => "Nhập lại hàng trả",
+        _ => "Khác"
+    };
+}
+<div class="admin-page-heading">
+    <div><h2>@Model.Form.Name</h2><p>Mã sản phẩm #@productId · @(Model.Form.IsActive ? "Đang bán" : "Ngừng bán")</p></div>
+    <div class="admin-actions">
+        <a class="btn btn-outline-secondary" asp-area="" asp-controller="Products" asp-action="Details" asp-route-id="@productId" target="_blank"><i class="fa fa-external-link me-1"></i>Xem trên cửa hàng</a>
+        <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Products" asp-action="Index"><i class="fa fa-arrow-left me-1"></i>Danh sách</a>
+    </div>
+</div>
+
+@if (Model.HiddenReason is not null)
+{
+    <div class="alert alert-warning" role="status"><i class="fa fa-eye-slash me-2"></i>@Model.HiddenReason Bật lại danh mục/thương hiệu hoặc chuyển sản phẩm sang danh mục/thương hiệu khác để tiếp tục bán.</div>
+}
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <section class="admin-detail-card h-100">
+            <h3>Thông tin sản phẩm</h3>
+            <form asp-area="Admin" asp-controller="Products" asp-action="Edit" asp-route-id="@productId" method="post">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                <partial name="_ProductFields" for="Form" />
+                <div class="admin-actions">
+                    <button type="submit" class="btn btn-primary"><i class="fa fa-save me-2"></i>Lưu thay đổi</button>
+                </div>
+            </form>
+        </section>
+    </div>
+    <div class="col-lg-5">
+        <section class="admin-detail-card h-100">
+            <h3>Hình ảnh (@Model.Images.Count)</h3>
+            @if (Model.Images.Count == 0)
+            {
+                <p class="admin-stat-note">Chưa có ảnh nào.</p>
+            }
+            else
+            {
+                <div class="admin-image-grid mb-3">
+                    @foreach (var image in Model.Images)
+                    {
+                        <div class="admin-image-item @(image.IsPrimary ? "is-primary" : string.Empty)">
+                            <img src="@image.ImageUrl" alt="Ảnh sản phẩm" />
+                            @if (image.IsPrimary)
+                            {
+                                <span class="admin-image-badge">Ảnh đại diện</span>
+                            }
+                            <div class="admin-image-actions">
+                                @if (!image.IsPrimary)
+                                {
+                                    <form asp-area="Admin" asp-controller="Products" asp-action="SetPrimaryImage" asp-route-id="@image.Id" method="post">
+                                        <button type="submit" class="btn btn-sm btn-light" title="Đặt làm ảnh đại diện"><i class="fa fa-star"></i></button>
+                                    </form>
+                                }
+                                <form asp-area="Admin" asp-controller="Products" asp-action="DeleteImage" asp-route-id="@image.Id" method="post" onsubmit="return confirm('Xóa ảnh này?');">
+                                    <button type="submit" class="btn btn-sm btn-light text-danger" title="Xóa ảnh"><i class="fa fa-trash"></i></button>
+                                </form>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            <form asp-area="Admin" asp-controller="Products" asp-action="UploadImages" asp-route-productId="@productId" method="post" enctype="multipart/form-data">
+                <label for="images" class="form-label">Thêm ảnh</label>
+                <div class="input-group">
+                    <input id="images" name="images" type="file" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp" multiple required />
+                    <button type="submit" class="btn btn-outline-primary"><i class="fa fa-upload me-1"></i>Tải lên</button>
+                </div>
+                <div class="form-text">JPG, PNG, GIF, WEBP · tối đa 10 ảnh/lần · mỗi ảnh ≤ 5 MB.</div>
+            </form>
+        </section>
+    </div>
+</div>
+
+@if (Model.ProductSpecs.Count > 0)
+{
+    <section class="admin-detail-card mb-4">
+        <h3>Thông số sản phẩm</h3>
+        <p class="admin-stat-note">Khách hàng lọc và tìm kiếm theo các thông số này. Có thể chọn nhiều giá trị nếu sản phẩm phù hợp với nhiều loại.</p>
+        <form asp-area="Admin" asp-controller="Products" asp-action="UpdateSpecs" asp-route-id="@productId" method="post">
+            <div class="row g-3">
+                @foreach (var group in Model.ProductSpecs)
+                {
+                    <fieldset class="col-md-6 col-xl-4">
+                        <legend class="form-label fs-6 fw-semibold mb-1">@group.Name</legend>
+                        @if (!string.IsNullOrWhiteSpace(group.Hint)) { <div class="form-text mt-0 mb-2">@group.Hint</div> }
+                        @foreach (var option in group.Options)
+                        {
+                            var inputId = $"pspec-{option.Id}";
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="spec" value="@option.Id" id="@inputId" checked="@option.Selected" />
+                                <label class="form-check-label" for="@inputId">@option.Value@(string.IsNullOrWhiteSpace(option.Hint) ? "" : $" – {option.Hint}")</label>
+                            </div>
+                        }
+                    </fieldset>
+                }
+            </div>
+            <div class="admin-actions mt-3">
+                <button type="submit" class="btn btn-primary"><i class="fa fa-save me-2"></i>Lưu thông số</button>
+            </div>
+        </form>
+    </section>
+}
+
+<div class="admin-panel mb-4">
+    <div class="admin-panel-header">
+        <h3>Phiên bản sản phẩm (@Model.Variants.Count)</h3>
+        <a class="btn btn-sm btn-primary" asp-area="Admin" asp-controller="Products" asp-action="CreateVariant" asp-route-productId="@productId"><i class="fa fa-plus me-1"></i>Thêm phiên bản</a>
+    </div>
+    @if (Model.Variants.Count == 0)
+    {
+        <div class="admin-empty">Sản phẩm chưa có phiên bản nào nên chưa hiển thị trên cửa hàng.</div>
+    }
+    else
+    {
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>SKU</th><th>Phiên bản</th>@if (Model.VariantSpecNames.Count > 0) { <th>Thông số (@string.Join(" · ", Model.VariantSpecNames))</th> }<th>Giá bán</th><th>Tồn kho</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+        @foreach (var variant in Model.Variants)
+        {
+            <tr>
+                <td><strong>@variant.SKU</strong></td>
+                <td>@(variant.VariantLabel ?? "—")</td>
+                @if (Model.VariantSpecNames.Count > 0)
+                {
+                    <td>
+                        @(variant.SpecSummary ?? "—")
+                        @if (variant.IsMissingSpecs)
+                        {
+                            <span class="badge text-bg-warning ms-1" title="Phiên bản thiếu thông số sẽ không xuất hiện khi khách lọc theo thông số đó">Thiếu thông số</span>
+                        }
+                    </td>
+                }
+                <td>@variant.Price.ToString("N0") ₫</td>
+                <td><span class="@(variant.StockQuantity == 0 ? "text-danger fw-bold" : string.Empty)">@variant.StockQuantity</span></td>
+                <td><span class="admin-status @(variant.IsActive ? "status-completed" : "status-cancelled")">@(variant.IsActive ? "Đang bán" : "Ngừng bán")</span></td>
+                <td class="text-end">
+                    <div class="admin-actions justify-content-end">
+                        <a class="btn btn-sm btn-outline-primary" asp-area="Admin" asp-controller="Products" asp-action="EditVariant" asp-route-productId="@productId" asp-route-id="@variant.Id">Sửa</a>
+                        <form asp-area="Admin" asp-controller="Products" asp-action="DeleteVariant" asp-route-id="@variant.Id" asp-route-productId="@productId" method="post" onsubmit="return confirm('Xóa phiên bản @variant.SKU?');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+        }
+        </tbody></table></div>
+    }
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <section class="admin-detail-card h-100">
+            <h3>Nhập / điều chỉnh kho</h3>
+            @if (Model.Variants.Count == 0)
+            {
+                <p class="admin-stat-note">Hãy thêm phiên bản trước khi nhập kho.</p>
+            }
+            else
+            {
+                <form asp-area="Admin" asp-controller="Products" asp-action="AdjustStock" asp-route-productId="@productId" method="post">
+                    <div class="mb-3">
+                        <label asp-for="StockAdjustment.VariantId" class="form-label">Phiên bản</label>
+                        <select asp-for="StockAdjustment.VariantId" class="form-select" required>
+                            <option value="">-- Chọn phiên bản --</option>
+                            @foreach (var variant in Model.Variants)
+                            {
+                                <option value="@variant.Id">@variant.SKU@(variant.VariantLabel is null ? string.Empty : $" · {variant.VariantLabel}") (còn @variant.StockQuantity)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="StockAdjustment.Type" class="form-label">Loại giao dịch</label>
+                        <select asp-for="StockAdjustment.Type" class="form-select">
+                            <option value="@InventoryTransactionType.Import">Nhập hàng</option>
+                            <option value="@InventoryTransactionType.AdjustmentIncrease">Điều chỉnh tăng (kiểm kê, hàng trả lại)</option>
+                            <option value="@InventoryTransactionType.AdjustmentDecrease">Điều chỉnh giảm (hư hỏng, thất lạc)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="StockAdjustment.Quantity" class="form-label">Số lượng</label>
+                        <input asp-for="StockAdjustment.Quantity" type="number" min="1" max="100000" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="StockAdjustment.Note" class="form-label">Ghi chú</label>
+                        <input asp-for="StockAdjustment.Note" class="form-control" maxlength="500" placeholder="VD: Nhập lô hàng tháng 11" />
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100"><i class="fa fa-check me-2"></i>Cập nhật tồn kho</button>
+                </form>
+            }
+        </section>
+    </div>
+    <div class="col-lg-8">
+        <div class="admin-panel h-100">
+            <div class="admin-panel-header"><h3>Lịch sử kho gần đây</h3></div>
+            @if (Model.InventoryHistory.Count == 0)
+            {
+                <div class="admin-empty">Chưa có giao dịch kho.</div>
+            }
+            else
+            {
+                <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Thời gian</th><th>SKU</th><th>Loại</th><th>Số lượng</th><th>Ghi chú</th></tr></thead><tbody>
+                @foreach (var item in Model.InventoryHistory)
+                {
+                    <tr>
+                        <td>@item.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>@item.SKU</td>
+                        <td>@TypeText(item.Type)</td>
+                        <td class="@(item.Quantity >= 0 ? "text-success" : "text-danger") fw-bold">@(item.Quantity > 0 ? "+" : string.Empty)@item.Quantity</td>
+                        <td class="admin-wrap">@item.Note</td>
+                    </tr>
+                }
+                </tbody></table></div>
+            }
+        </div>
+    </div>
+</div>
+
+<section class="admin-detail-card admin-danger-zone">
+    <h3>Xóa sản phẩm</h3>
+    <p class="admin-stat-note">Chỉ xóa được sản phẩm chưa phát sinh đơn hàng. Với sản phẩm đã bán, hãy tắt "Đang bán" để ẩn khỏi cửa hàng mà vẫn giữ lịch sử.</p>
+    <form asp-area="Admin" asp-controller="Products" asp-action="Delete" asp-route-id="@productId" method="post" onsubmit="return confirm('Xóa vĩnh viễn sản phẩm này cùng toàn bộ phiên bản và hình ảnh?');">
+        <button type="submit" class="btn btn-outline-danger"><i class="fa fa-trash me-2"></i>Xóa sản phẩm</button>
+    </form>
+</section>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

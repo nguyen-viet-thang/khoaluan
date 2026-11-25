@@ -1,4 +1,6 @@
-﻿@{
+﻿@inject PopPop.Services.Interfaces.IHeaderBadgeService HeaderBadgeService
+@{
+    var staffBadges = await HeaderBadgeService.GetStaffBadgesAsync(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty, Context.RequestAborted);
     var title = ViewData["Title"] as string ?? "Quản trị";
 }
 <!DOCTYPE html>
@@ -18,8 +20,14 @@
             <div class="admin-user"><i class="fa fa-user-circle"></i><div><strong>@(User.Identity?.Name ?? "Tài khoản")</strong><small>Quản trị viên</small></div></div>
             <nav class="admin-nav" aria-label="Điều hướng quản trị">
                 <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index"><i class="fa fa-th-large"></i>Tổng quan</a>
-                <a asp-area="Admin" asp-controller="Orders" asp-action="Index"><i class="fa fa-shopping-bag"></i>Quản lý đơn hàng</a>
-                <a asp-area="Staff" asp-controller="SupportChat" asp-action="Index"><i class="fa fa-comments"></i>Tin nhắn khách hàng</a>
+                <a asp-area="Admin" asp-controller="Orders" asp-action="Index"><i class="fa fa-shopping-bag"></i>Quản lý đơn hàng @if (staffBadges.PendingOrderCount > 0) { <span class="admin-nav__count" title="Đơn chờ xác nhận">@staffBadges.PendingOrderCount</span> }</a>
+                <a asp-area="Admin" asp-controller="Reports" asp-action="Index"><i class="fa fa-bar-chart"></i>Báo cáo thống kê</a>
+                <a asp-area="Staff" asp-controller="Claims" asp-action="Index"><i class="fa fa-wrench"></i>Bảo hành &amp; đổi hàng @if (staffBadges.PendingClaimCount > 0) { <span class="admin-nav__count" title="Yêu cầu chờ duyệt">@staffBadges.PendingClaimCount</span> }</a>
+                <a asp-area="Admin" asp-controller="WarrantyPolicies" asp-action="Index"><i class="fa fa-shield"></i>Chính sách bảo hành</a>
+                <a asp-area="Admin" asp-controller="Products" asp-action="Index"><i class="fa fa-cubes"></i>Quản lý sản phẩm</a>
+                <a asp-area="Admin" asp-controller="Categories" asp-action="Index"><i class="fa fa-folder-open"></i>Danh mục</a>
+                <a asp-area="Admin" asp-controller="Brands" asp-action="Index"><i class="fa fa-tags"></i>Thương hiệu</a>
+                <a asp-area="Admin" asp-controller="Customers" asp-action="Index"><i class="fa fa-address-book"></i>Khách hàng</a>
                 <a asp-area="Admin" asp-controller="StaffAccounts" asp-action="Index"><i class="fa fa-users"></i>Tài khoản nhân viên</a>
                 <a asp-area="Staff" asp-controller="Orders" asp-action="Index"><i class="fa fa-tasks"></i>Khu vực nhân viên</a>
                 <a asp-area="" asp-controller="Home" asp-action="Index"><i class="fa fa-external-link"></i>Xem cửa hàng</a>
@@ -29,7 +37,7 @@
             </form>
         </aside>
         <main class="admin-main">
-            <header class="admin-topbar"><div><span class="admin-eyebrow">HỆ THỐNG QUẢN LÝ</span><h1>@title</h1></div><span class="admin-topbar-user"><i class="fa fa-user-circle"></i> @(User.Identity?.Name ?? "Tài khoản")</span></header>
+            <header class="admin-topbar"><div><span class="admin-eyebrow">HỆ THỐNG QUẢN LÝ</span><h1>@title</h1></div><div class="admin-topbar-actions"><partial name="_StaffNotificationBell" model="staffBadges" /><span class="admin-topbar-user"><i class="fa fa-user-circle"></i> @(User.Identity?.Name ?? "Tài khoản")</span></div></header>
             <section class="admin-content">
                 @if (TempData["SuccessMessage"] is string successMessage)
                 {
@@ -45,6 +53,8 @@
     </div>
     <script src="~/lib/chart/chart.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@10.0.0/dist/browser/signalr.min.js" crossorigin="anonymous"></script>
+    <script src="~/js/notifications.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

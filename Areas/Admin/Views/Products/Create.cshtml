@@ -1,0 +1,26 @@
+@model PopPop.Models.ProductFormViewModel
+@{
+    ViewData["Title"] = "Thêm sản phẩm";
+}
+<div class="admin-page-heading">
+    <div><h2>Thêm sản phẩm mới</h2><p>Sau khi tạo, bạn sẽ thêm các phiên bản (SKU, giá, tồn kho) cho sản phẩm.</p></div>
+    <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Products" asp-action="Index"><i class="fa fa-arrow-left me-1"></i>Danh sách sản phẩm</a>
+</div>
+<div class="admin-detail-card" style="max-width:820px">
+    <form asp-area="Admin" asp-controller="Products" asp-action="Create" method="post" enctype="multipart/form-data">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+        <partial name="_ProductFields" model="Model" />
+        <div class="mb-3">
+            <label for="images" class="form-label">Hình ảnh sản phẩm</label>
+            <input id="images" name="images" type="file" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp" multiple />
+            <div class="form-text">Tối đa 10 ảnh, mỗi ảnh ≤ 5 MB. Ảnh đầu tiên sẽ là ảnh đại diện.</div>
+        </div>
+        <div class="admin-actions">
+            <button type="submit" class="btn btn-primary"><i class="fa fa-save me-2"></i>Tạo sản phẩm</button>
+            <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Products" asp-action="Index">Hủy</a>
+        </div>
+    </form>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

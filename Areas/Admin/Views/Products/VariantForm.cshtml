@@ -1,0 +1,84 @@
+﻿@model PopPop.Models.ProductVariantFormViewModel
+@{
+    var isEdit = Model.VariantId.HasValue;
+    ViewData["Title"] = isEdit ? "Sửa phiên bản" : "Thêm phiên bản";
+}
+<div class="admin-page-heading">
+    <div><h2>@ViewData["Title"]</h2><p>Sản phẩm: <strong>@Model.ProductName</strong></p></div>
+    <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Products" asp-action="Edit" asp-route-id="@Model.ProductId"><i class="fa fa-arrow-left me-1"></i>Quay lại sản phẩm</a>
+</div>
+<div class="admin-detail-card" style="max-width:680px">
+    <form asp-area="Admin" asp-controller="Products" asp-action="@(isEdit ? "EditVariant" : "CreateVariant")" asp-route-id="@Model.VariantId" method="post">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+        <input type="hidden" asp-for="ProductId" />
+        <input type="hidden" asp-for="ProductName" />
+        <input type="hidden" asp-for="CurrentStock" />
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label asp-for="SKU" class="form-label"></label>
+                <input asp-for="SKU" class="form-control text-uppercase" maxlength="100" placeholder="VD: YNX-AX88D-4UG5" />
+                <span asp-validation-for="SKU" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="VariantLabel" class="form-label"></label>
+                <input asp-for="VariantLabel" class="form-control" maxlength="100" />
+                <span asp-validation-for="VariantLabel" class="text-danger"></span>
+            </div>
+        </div>
+        @if (Model.SpecGroups.Count > 0)
+        {
+            <fieldset class="admin-spec-fieldset mb-3">
+                <legend class="form-label fs-6 fw-semibold">Thông số phiên bản <span class="form-text d-inline">(dùng cho bộ lọc tìm kiếm của khách)</span></legend>
+                <div class="row g-3">
+                    @foreach (var group in Model.SpecGroups)
+                    {
+                        var selectId = $"spec-{group.AttributeId}";
+                        <div class="col-md-6">
+                            <label for="@selectId" class="form-label">@group.Name</label>
+                            <select id="@selectId" name="SpecOptionIds" class="form-select">
+                                <option value="">— Chưa chọn —</option>
+                                @foreach (var option in group.Options)
+                                {
+                                    <option value="@option.Id" selected="@option.Selected">@option.Value@(string.IsNullOrWhiteSpace(option.Hint) ? "" : $" ({option.Hint})")</option>
+                                }
+                            </select>
+                            @if (!string.IsNullOrWhiteSpace(group.Hint)) { <div class="form-text">@group.Hint</div> }
+                        </div>
+                    }
+                </div>
+            </fieldset>
+        }
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label asp-for="Price" class="form-label"></label>
+                <input asp-for="Price" type="number" min="0" step="1000" class="form-control" />
+                <span asp-validation-for="Price" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                @if (isEdit)
+                {
+                    <label class="form-label">Tồn kho hiện tại</label>
+                    <input class="form-control" value="@Model.CurrentStock" disabled />
+                    <div class="form-text">Thay đổi tồn kho tại mục "Nhập / điều chỉnh kho" để lưu lịch sử.</div>
+                }
+                else
+                {
+                    <label asp-for="InitialStock" class="form-label"></label>
+                    <input asp-for="InitialStock" type="number" min="0" max="100000" class="form-control" />
+                    <span asp-validation-for="InitialStock" class="text-danger"></span>
+                }
+            </div>
+        </div>
+        <div class="form-check form-switch mb-3">
+            <input asp-for="IsActive" class="form-check-input" role="switch" />
+            <label asp-for="IsActive" class="form-check-label"></label>
+        </div>
+        <div class="admin-actions">
+            <button type="submit" class="btn btn-primary"><i class="fa fa-save me-2"></i>@(isEdit ? "Lưu phiên bản" : "Thêm phiên bản")</button>
+            <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Products" asp-action="Edit" asp-route-id="@Model.ProductId">Hủy</a>
+        </div>
+    </form>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,85 @@
+@model PopPop.Models.ProductManagementListViewModel
+@{
+    ViewData["Title"] = "Quản lý sản phẩm";
+    string PriceRange(decimal? min, decimal? max) => min is null
+        ? "Chưa có giá"
+        : min == max ? $"{min:N0} ₫" : $"{min:N0} – {max:N0} ₫";
+}
+<div class="admin-page-heading">
+    <div><h2>Danh sách sản phẩm</h2><p>Thêm, chỉnh sửa sản phẩm, phiên bản, hình ảnh và tồn kho.</p></div>
+    <a class="btn btn-primary" asp-area="Admin" asp-controller="Products" asp-action="Create"><i class="fa fa-plus me-1"></i>Thêm sản phẩm</a>
+</div>
+<form class="admin-toolbar" method="get">
+    <input class="form-control" type="search" name="search" value="@Model.Search" placeholder="Tên sản phẩm hoặc mã SKU" aria-label="Tìm sản phẩm" />
+    <select class="form-select" name="categoryId" aria-label="Lọc theo danh mục">
+        <option value="">Tất cả danh mục</option>
+        @foreach (var category in Model.Categories)
+        {
+            <option value="@category.Id" selected="@(Model.CategoryId == category.Id)">@category.Name</option>
+        }
+    </select>
+    <select class="form-select" name="brandId" aria-label="Lọc theo thương hiệu">
+        <option value="">Tất cả thương hiệu</option>
+        @foreach (var brand in Model.Brands)
+        {
+            <option value="@brand.Id" selected="@(Model.BrandId == brand.Id)">@brand.Name</option>
+        }
+    </select>
+    <select class="form-select" name="status" aria-label="Lọc theo trạng thái">
+        <option value="">Tất cả trạng thái</option>
+        <option value="active" selected="@(Model.Status == "active")">Đang bán</option>
+        <option value="inactive" selected="@(Model.Status == "inactive")">Ngừng bán</option>
+    </select>
+    <button class="btn btn-primary" type="submit"><i class="fa fa-search me-1"></i>Lọc</button>
+    <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Products" asp-action="Index">Xóa lọc</a>
+</form>
+<div class="admin-panel">
+    <div class="admin-panel-header"><h3>@Model.Products.Count sản phẩm</h3></div>
+    @if (Model.Products.Count == 0)
+    {
+        <div class="admin-empty">Không tìm thấy sản phẩm phù hợp.</div>
+    }
+    else
+    {
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Sản phẩm</th><th>Danh mục</th><th>Thương hiệu</th><th>Phiên bản</th><th>Giá bán</th><th>Tồn kho</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+        @foreach (var product in Model.Products)
+        {
+            <tr>
+                <td>
+                    <div class="admin-product-cell">
+                        @if (product.ImageUrl is not null)
+                        {
+                            <img src="@product.ImageUrl" alt="" class="admin-thumb" />
+                        }
+                        else
+                        {
+                            <span class="admin-thumb admin-thumb-empty"><i class="fa fa-image"></i></span>
+                        }
+                        <a class="admin-link" asp-area="Admin" asp-controller="Products" asp-action="Edit" asp-route-id="@product.Id">@product.Name</a>
+                    </div>
+                </td>
+                <td>@product.CategoryName</td>
+                <td>@product.BrandName</td>
+                <td>@product.VariantCount</td>
+                <td>@PriceRange(product.MinPrice, product.MaxPrice)</td>
+                <td><span class="@(product.TotalStock == 0 ? "text-danger fw-bold" : product.TotalStock < 5 ? "text-warning fw-bold" : string.Empty)">@product.TotalStock</span></td>
+                <td>
+                    @if (!product.IsActive)
+                    {
+                        <span class="admin-status status-cancelled">Ngừng bán</span>
+                    }
+                    else if (product.HiddenReason is not null)
+                    {
+                        <span class="admin-status status-pending" title="@product.HiddenReason">Đang ẩn</span>
+                    }
+                    else
+                    {
+                        <span class="admin-status status-completed">Đang bán</span>
+                    }
+                </td>
+                <td><a class="btn btn-sm btn-outline-primary" asp-area="Admin" asp-controller="Products" asp-action="Edit" asp-route-id="@product.Id">Quản lý</a></td>
+            </tr>
+        }
+        </tbody></table></div>
+    }
+</div>

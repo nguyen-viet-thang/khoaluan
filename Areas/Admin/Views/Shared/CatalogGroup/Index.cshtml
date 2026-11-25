@@ -1,0 +1,66 @@
+@model PopPop.Models.CatalogGroupListViewModel
+@{
+    var label = ViewData["GroupLabel"] as string ?? string.Empty;
+    var controller = ViewContext.RouteData.Values["controller"] as string;
+    ViewData["Title"] = ViewData["PageTitle"] as string;
+}
+<div class="admin-page-heading">
+    <div><h2>Danh sách @label</h2><p>@(char.ToUpper(label[0]) + label[1..]) dùng để phân loại sản phẩm và lọc trên cửa hàng.</p></div>
+    <a class="btn btn-primary" asp-area="Admin" asp-controller="@controller" asp-action="Create"><i class="fa fa-plus me-1"></i>Thêm @label</a>
+</div>
+<form class="admin-toolbar" method="get">
+    <input class="form-control" type="search" name="search" value="@Model.Search" placeholder="Tìm theo tên @label" aria-label="Tìm @label" />
+    <select class="form-select" name="status" aria-label="Lọc theo trạng thái">
+        <option value="">Tất cả trạng thái</option>
+        <option value="active" selected="@(Model.Status == "active")">Đang hoạt động</option>
+        <option value="inactive" selected="@(Model.Status == "inactive")">Ngừng hoạt động</option>
+    </select>
+    <button class="btn btn-primary" type="submit"><i class="fa fa-search me-1"></i>Lọc</button>
+    <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="@controller" asp-action="Index">Xóa lọc</a>
+</form>
+<div class="admin-panel">
+    <div class="admin-panel-header"><h3>@Model.Items.Count @label</h3></div>
+    @if (Model.Items.Count == 0)
+    {
+        <div class="admin-empty">Không có @label phù hợp.</div>
+    }
+    else
+    {
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Tên</th><th>Mô tả</th><th>Số sản phẩm</th><th>Trạng thái</th><th>Cập nhật</th><th></th></tr></thead><tbody>
+        @foreach (var item in Model.Items)
+        {
+            <tr>
+                <td><a class="admin-link" asp-area="Admin" asp-controller="@controller" asp-action="Edit" asp-route-id="@item.Id"><i class="fa @ViewData["IconClass"] me-2"></i>@item.Name</a></td>
+                <td class="admin-wrap text-muted">@item.Description</td>
+                <td>
+                    @if (item.ProductCount > 0 && controller == "Categories")
+                    {
+                        <a class="admin-link" asp-area="Admin" asp-controller="Products" asp-action="Index" asp-route-categoryId="@item.Id">@item.ProductCount</a>
+                    }
+                    else if (item.ProductCount > 0)
+                    {
+                        <a class="admin-link" asp-area="Admin" asp-controller="Products" asp-action="Index" asp-route-brandId="@item.Id">@item.ProductCount</a>
+                    }
+                    else
+                    {
+                        <span>0</span>
+                    }
+                </td>
+                <td><span class="admin-status @(item.IsActive ? "status-completed" : "status-cancelled")">@(item.IsActive ? "Đang hoạt động" : "Ngừng hoạt động")</span></td>
+                <td>@item.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                <td class="text-end">
+                    <div class="admin-actions justify-content-end">
+                        <a class="btn btn-sm btn-outline-primary" asp-area="Admin" asp-controller="@controller" asp-action="Edit" asp-route-id="@item.Id">Sửa</a>
+                        @if (item.ProductCount == 0)
+                        {
+                            <form asp-area="Admin" asp-controller="@controller" asp-action="Delete" asp-route-id="@item.Id" method="post" onsubmit="return confirm('Xóa @label này?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
+                            </form>
+                        }
+                    </div>
+                </td>
+            </tr>
+        }
+        </tbody></table></div>
+    }
+</div>

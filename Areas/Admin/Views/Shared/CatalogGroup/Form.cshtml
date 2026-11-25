@@ -1,0 +1,55 @@
+@model PopPop.Models.CatalogGroupFormViewModel
+@{
+    var label = ViewData["GroupLabel"] as string ?? string.Empty;
+    var controller = ViewContext.RouteData.Values["controller"] as string;
+    var isEdit = Model.Id.HasValue;
+    ViewData["Title"] = isEdit ? $"Sửa {label}" : $"Thêm {label}";
+}
+<div class="admin-page-heading">
+    <div>
+        <h2>@ViewData["Title"]</h2>
+        @if (isEdit)
+        {
+            <p>Đang có @Model.ProductCount sản phẩm thuộc @label này.</p>
+        }
+    </div>
+    <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="@controller" asp-action="Index"><i class="fa fa-arrow-left me-1"></i>Danh sách @label</a>
+</div>
+<div class="admin-detail-card" style="max-width:680px">
+    <form asp-area="Admin" asp-controller="@controller" asp-action="@(isEdit ? "Edit" : "Create")" asp-route-id="@Model.Id" method="post">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+        <input type="hidden" asp-for="ProductCount" />
+        <div class="mb-3">
+            <label asp-for="Name" class="form-label">Tên @label</label>
+            <input asp-for="Name" class="form-control" maxlength="256" />
+            <span asp-validation-for="Name" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="Description" class="form-label"></label>
+            <textarea asp-for="Description" class="form-control" rows="4" maxlength="1000"></textarea>
+            <span asp-validation-for="Description" class="text-danger"></span>
+        </div>
+        <div class="form-check form-switch mb-2">
+            <input asp-for="IsActive" class="form-check-input" role="switch" />
+            <label asp-for="IsActive" class="form-check-label"></label>
+        </div>
+        <p class="admin-stat-note mb-3">
+            Khi tắt "Đang hoạt động", @label này bị ẩn khỏi bộ lọc và <strong>toàn bộ sản phẩm thuộc @label này sẽ ngừng hiển thị và không thể đặt mua trên cửa hàng</strong>@(Model.ProductCount > 0 ? $" (hiện có {Model.ProductCount} sản phẩm)" : string.Empty).
+            Dữ liệu sản phẩm và đơn hàng cũ vẫn được giữ nguyên; bật lại để bán tiếp.
+        </p>
+        <div class="admin-actions">
+            <button type="submit" class="btn btn-primary"><i class="fa fa-save me-2"></i>@(isEdit ? "Lưu thay đổi" : $"Thêm {label}")</button>
+            <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="@controller" asp-action="Index">Hủy</a>
+        </div>
+    </form>
+    @if (isEdit && Model.ProductCount == 0)
+    {
+        <hr />
+        <form asp-area="Admin" asp-controller="@controller" asp-action="Delete" asp-route-id="@Model.Id" method="post" onsubmit="return confirm('Xóa @label này?');">
+            <button type="submit" class="btn btn-outline-danger"><i class="fa fa-trash me-2"></i>Xóa @label</button>
+        </form>
+    }
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

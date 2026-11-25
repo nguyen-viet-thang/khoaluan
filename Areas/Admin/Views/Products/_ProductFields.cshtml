@@ -1,0 +1,40 @@
+@model PopPop.Models.ProductFormViewModel
+@* Shared fields for product create/edit. The caller sets ViewData.TemplateInfo.HtmlFieldPrefix when needed. *@
+<div class="mb-3">
+    <label asp-for="Name" class="form-label"></label>
+    <input asp-for="Name" class="form-control" maxlength="256" />
+    <span asp-validation-for="Name" class="text-danger"></span>
+</div>
+<div class="row g-3 mb-3">
+    <div class="col-md-6">
+        <label asp-for="CategoryId" class="form-label"></label>
+        <select asp-for="CategoryId" class="form-select">
+            <option value="">-- Chọn danh mục --</option>
+            @foreach (var category in Model.Categories)
+            {
+                <option value="@category.Id">@category.Name@(category.IsActive ? string.Empty : " (ngừng hoạt động)")</option>
+            }
+        </select>
+        <span asp-validation-for="CategoryId" class="text-danger"></span>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="BrandId" class="form-label"></label>
+        <select asp-for="BrandId" class="form-select">
+            <option value="">-- Chọn thương hiệu --</option>
+            @foreach (var brand in Model.Brands)
+            {
+                <option value="@brand.Id">@brand.Name@(brand.IsActive ? string.Empty : " (ngừng hoạt động)")</option>
+            }
+        </select>
+        <span asp-validation-for="BrandId" class="text-danger"></span>
+    </div>
+</div>
+<div class="mb-3">
+    <label asp-for="Description" class="form-label"></label>
+    <textarea asp-for="Description" class="form-control" rows="6" maxlength="2000"></textarea>
+    <span asp-validation-for="Description" class="text-danger"></span>
+</div>
+<div class="form-check form-switch mb-3">
+    <input asp-for="IsActive" class="form-check-input" role="switch" />
+    <label asp-for="IsActive" class="form-check-label">Đang bán (hiển thị trên cửa hàng)</label>
+</div>
