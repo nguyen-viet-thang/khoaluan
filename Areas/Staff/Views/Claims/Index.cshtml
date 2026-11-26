@@ -6,7 +6,7 @@
     ViewData["Title"] = "Bảo hành & đổi hàng";
 }
 <div class="admin-page-heading">
-    <div><h2>Yêu cầu bảo hành &amp; đổi hàng</h2><p>@Model.OpenCount yêu cầu đang chờ xử lý. Yêu cầu chờ lâu nhất được xếp lên đầu.</p></div>
+    <div><h2>Yêu cầu bảo hành &amp; đổi hàng</h2><p>@Model.OpenCount yêu cầu đang chờ xử lý. Yêu cầu được sắp theo trạng thái trong quy trình (Chờ duyệt → … → Đang gửi hàng cho khách → Hoàn tất / Từ chối / Khách hủy); trong mỗi trạng thái, yêu cầu chờ lâu nhất ở trên.</p></div>
 </div>
 <form class="admin-toolbar" method="get">
     <input class="form-control" type="search" name="search" value="@Model.Search" placeholder="Mã yêu cầu, mã đơn, sản phẩm, khách hàng, SĐT" aria-label="Tìm yêu cầu" />
@@ -34,8 +34,16 @@
     else
     {
         <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Mã yêu cầu</th><th>Khách hàng</th><th>Sản phẩm / lỗi</th><th>Loại</th><th>Cập nhật</th><th>Trạng thái</th><th></th></tr></thead><tbody>
-        @foreach (var claim in Model.Claims)
+        @foreach (var group in Model.Claims.GroupBy(claim => claim.Status))
         {
+            <tr class="admin-table__group">
+                <td colspan="7">
+                    <span class="admin-status @ClaimDisplay.StatusClass(group.Key)">@ClaimDisplay.StatusText(group.Key)</span>
+                    <span class="admin-table__group-count">@group.Count() yêu cầu · @(ClaimDisplay.IsClosed(group.Key) ? "cập nhật mới nhất ở trên" : "chờ lâu nhất ở trên")</span>
+                </td>
+            </tr>
+            @foreach (var claim in group)
+            {
             <tr>
                 <td><a class="admin-link" asp-area="Staff" asp-controller="Claims" asp-action="Details" asp-route-id="@claim.Id">@claim.Code</a><div class="admin-stat-note">Đơn @claim.OrderCode</div></td>
                 <td>@claim.CustomerName</td>
@@ -45,6 +53,7 @@
                 <td><span class="admin-status @ClaimDisplay.StatusClass(claim.Status)">@ClaimDisplay.StatusText(claim.Status)</span></td>
                 <td><a class="btn btn-sm btn-outline-primary" asp-area="Staff" asp-controller="Claims" asp-action="Details" asp-route-id="@claim.Id">Xử lý</a></td>
             </tr>
+            }
         }
         </tbody></table></div>
     }

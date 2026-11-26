@@ -1,0 +1,63 @@
+STORE|D1|Tài khoản
+STORE|D2|Sản phẩm, tồn kho
+STORE|D3|Giỏ hàng
+STORE|D4|Đơn hàng
+STORE|D5|Yêu cầu bảo hành
+STORE|D6|Chính sách bảo hành
+TOP|VL|Khách vãng lai
+LEFT|KH|Khách hàng
+RIGHT|NV|Nhân viên
+RIGHT|QTV|Quản trị viên
+PROC|C|1.0|Tra cứu sản phẩm
+PROC|C|2.0|Quản lý tài khoản
+PROC|C|3.0|Đặt hàng
+PROC|C|4.0|Gửi yêu cầu bảo hành
+PROC|S|5.0|Xử lý đơn hàng
+PROC|S|6.0|Xử lý bảo hành
+PROC|S|7.0|Quản lý người dùng
+PROC|S|8.0|Quản lý sản phẩm và kho
+PROC|S|9.0|Cấu hình chính sách bảo hành
+PROC|S|10.0|Thống kê báo cáo
+PS|1.0|D2|r
+PS|2.0|D1|rw
+PS|3.0|D3|rw
+PS|3.0|D2|rw
+PS|3.0|D4|rw
+PS|4.0|D4|r
+PS|4.0|D6|r
+PS|4.0|D5|rw
+PS|5.0|D4|rw
+PS|5.0|D2|w
+PS|6.0|D5|rw
+PS|6.0|D2|w
+PS|7.0|D1|rw
+PS|7.0|D4|r
+PS|8.0|D2|rw
+PS|9.0|D6|rw
+PS|10.0|D4|r
+EF|VL|1.0|in|Từ khóa, bộ lọc
+EF|VL|1.0|out|Danh sách, chi tiết sản phẩm
+EF|VL|2.0|in|Thông tin đăng ký, xác thực
+EF|VL|2.0|out|Kết quả, email xác thực
+EF|KH|1.0|in|Từ khóa, bộ lọc
+EF|KH|1.0|out|Danh sách, chi tiết sản phẩm
+EF|KH|2.0|in|Đăng nhập, hồ sơ, mật khẩu
+EF|KH|2.0|out|Kết quả, email đặt lại mật khẩu
+EF|KH|3.0|in|Giỏ hàng, giao hàng, hủy đơn
+EF|KH|3.0|out|Đơn hàng, trạng thái, thông báo
+EF|KH|4.0|in|Yêu cầu, video, thông tin gửi hàng
+EF|KH|4.0|out|Tiến trình yêu cầu, thông báo
+EF|NV|5.0|in|Trạng thái mới, lý do hủy
+EF|NV|5.0|out|Danh sách, chi tiết đơn hàng
+EF|NV|6.0|in|Quyết định xử lý, vận chuyển
+EF|NV|6.0|out|Yêu cầu bảo hành, minh chứng
+EF|NV|7.0|in|Đăng nhập, mật khẩu mới
+EF|NV|7.0|out|Kết quả đăng nhập
+EF|QTV|7.0|in|Thông tin khách hàng, nhân viên
+EF|QTV|7.0|out|Danh sách người dùng, mật khẩu
+EF|QTV|8.0|in|Sản phẩm, danh mục, nhập kho
+EF|QTV|8.0|out|Sản phẩm, tồn kho, lịch sử kho
+EF|QTV|9.0|in|Thời hạn bảo hành, loại lỗi
+EF|QTV|9.0|out|Chính sách bảo hành
+EF|QTV|10.0|in|Khoảng thời gian thống kê
+EF|QTV|10.0|out|Báo cáo doanh thu, tệp Excel

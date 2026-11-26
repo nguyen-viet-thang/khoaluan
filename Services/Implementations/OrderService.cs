@@ -478,7 +478,7 @@ public sealed class OrderService : IOrderService
             await _inventoryTransactionRepository.AddAsync(new InventoryTransaction
             {
                 ProductVariantId = variant.Id,
-                Type = InventoryTransactionType.AdjustmentIncrease,
+                Type = InventoryTransactionType.OrderCancelRestock,
                 Quantity = item.Quantity,
                 Note = note,
                 CreatedAt = now

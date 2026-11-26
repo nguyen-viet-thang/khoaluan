@@ -69,8 +69,21 @@ public sealed class OrderRepository : Repository<Order, int>, IOrderRepository
                 || (order.User != null && order.User.UserName != null && order.User.UserName.Contains(term)));
         }
 
+        // Work queue order: the status that needs action first comes first
+        // (Chờ xác nhận → Đã xác nhận → Đang xử lý → Đang giao → Đã giao → Đã hủy).
+        // Open orders: oldest first, so the customer who has waited longest is served first.
+        // Finished orders (completed / cancelled): newest first, they are only looked up.
         return await query
-            .OrderByDescending(order => order.CreatedAt)
+            .OrderBy(order => order.Status == OrderStatus.Pending ? 0
+                : order.Status == OrderStatus.Confirmed ? 1
+                : order.Status == OrderStatus.Processing ? 2
+                : order.Status == OrderStatus.Shipping ? 3
+                : order.Status == OrderStatus.Completed ? 4
+                : 5)
+            .ThenBy(order => order.Status == OrderStatus.Completed || order.Status == OrderStatus.Cancelled
+                ? DateTime.MaxValue
+                : order.CreatedAt)
+            .ThenByDescending(order => order.CreatedAt)
             .ToListAsync(cancellationToken);
     }
 

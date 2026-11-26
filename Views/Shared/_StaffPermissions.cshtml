@@ -1,0 +1,41 @@
+@* What the Staff role can and cannot do. Keep in sync with [Authorize(Roles = ...)] on the controllers:
+   Areas/Staff/* = "Admin,Staff"; every Areas/Admin/* controller = "Admin" only. *@
+<div class="staff-permissions">
+    <div class="staff-permissions__col">
+        <h4 class="staff-permissions__title staff-permissions__title--allow"><i class="fa fa-check-circle"></i>Nhân viên được phép</h4>
+        <ul class="staff-permissions__list">
+            <li>
+                <strong>Đơn hàng</strong> (Khu vực nhân viên › Đơn hàng cần xử lý): xem và tìm mọi đơn hàng theo mã, tên, số điện thoại, trạng thái; xem chi tiết người nhận, sản phẩm, tổng tiền.
+            </li>
+            <li>
+                <strong>Cập nhật trạng thái đơn</strong> theo đúng thứ tự: Chờ xác nhận → Đã xác nhận → Đang xử lý → Đang giao → Đã giao thành công (đơn COD giao xong được ghi nhận đã thanh toán).
+            </li>
+            <li>
+                <strong>Hủy đơn</strong> khi đơn chưa chuyển sang Đang giao, bắt buộc ghi lý do; hàng trong đơn được hoàn lại kho và khách nhận thông báo.
+            </li>
+            <li>
+                <strong>Bảo hành &amp; đổi hàng</strong>: xem yêu cầu và video bằng chứng của khách; yêu cầu bổ sung thông tin, duyệt hoặc từ chối, xác nhận đã nhận hàng, gửi hãng, gửi sản phẩm thay thế cho khách và hoàn tất yêu cầu.
+            </li>
+            <li>
+                <strong>Ghi chú nội bộ</strong> và <strong>gửi tin nhắn</strong> cho khách trên từng yêu cầu bảo hành.
+            </li>
+            <li>
+                <strong>Thông báo</strong>: nhận thông báo đơn hàng mới, khách hủy đơn, yêu cầu bảo hành mới / bổ sung bằng chứng / khách hủy yêu cầu.
+            </li>
+            <li>
+                <strong>Tài khoản cá nhân</strong>: đổi mật khẩu của chính mình, cập nhật họ tên và số điện thoại liên hệ.
+            </li>
+        </ul>
+    </div>
+    <div class="staff-permissions__col">
+        <h4 class="staff-permissions__title staff-permissions__title--deny"><i class="fa fa-ban"></i>Chỉ quản trị viên (nhân viên không truy cập được)</h4>
+        <ul class="staff-permissions__list">
+            <li>Tổng quan quản trị, doanh thu và báo cáo / xuất Excel.</li>
+            <li>Thêm, sửa, xóa sản phẩm, biến thể, hình ảnh, thông số; nhập kho.</li>
+            <li>Quản lý danh mục và thương hiệu.</li>
+            <li>Chính sách bảo hành và danh mục lỗi.</li>
+            <li>Quản lý khách hàng: xem hồ sơ, khóa / mở khóa, cấp mật khẩu tạm, xóa tài khoản.</li>
+            <li>Quản lý tài khoản nhân viên (tạo, sửa, khóa, đặt lại mật khẩu).</li>
+        </ul>
+    </div>
+</div>

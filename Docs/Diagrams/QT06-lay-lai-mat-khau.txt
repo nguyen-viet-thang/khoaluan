@@ -1,0 +1,52 @@
+PAGE|QT06. Quy trình lấy lại mật khẩu qua email
+TITLE|SƠ ĐỒ HOẠT ĐỘNG: QUY TRÌNH LẤY LẠI MẬT KHẨU QUA EMAIL (QT06)
+INFO|UC06|Quy trình lấy lại mật khẩu qua email.
+INFO|Chức năng đáp ứng|FR02, FR04 (CN04 – Đăng nhập; CN08 – Đổi mật khẩu).
+INFO|Tác nhân|Khách hàng, Nhân viên.
+INFO|Mô tả|Cho phép người dùng quên mật khẩu tự đặt lại mật khẩu qua email của tài khoản. Hệ thống gửi liên kết đặt lại mật khẩu (dùng một lần, hiệu lực 24 giờ) tới email; người dùng mở liên kết, đặt mật khẩu mới và đăng nhập lại.
+INFO|Tiền điều kiện|Người dùng đã có tài khoản đăng nhập bằng email (khách hàng) hoặc Gmail (nhân viên) và truy cập được hộp thư đó.
+INFO|Hậu điều kiện|Mật khẩu của tài khoản được đặt lại theo mật khẩu mới người dùng chọn; người dùng có thể đăng nhập lại và tiếp tục sử dụng hệ thống.
+LANE|Khách hàng, Nhân viên
+LANE|Hệ thống
+N|start|start|0|0|
+N|n1|action|0|1|Tại trang đăng nhập, chọn "Quên mật khẩu?"
+N|n2|action|0|2|Nhập email của tài khoản
+N|n2b|action|0|3|Chọn "Gửi email đặt lại mật khẩu"
+N|n3|action|1|4|Kiểm tra email đã nhập
+N|d1|decision|1|5|Email hợp lệ?
+N|n4|action|1|6|Nếu email thuộc một tài khoản: tạo liên kết đặt lại mật khẩu, gửi email
+N|n5|action|1|7|Hiển thị trang hướng dẫn kiểm tra email
+N|n6|action|0|8|Mở email, chọn "Đặt mật khẩu mới"
+N|n7|action|1|8|Kiểm tra liên kết đặt lại mật khẩu
+N|d2|decision|1|9|Liên kết hợp lệ?
+N|n8|action|0|10|Chọn "Gửi lại email đặt lại mật khẩu"
+N|n9|action|1|11|Hiển thị trang đặt mật khẩu mới
+N|n10|action|0|12|Nhập mật khẩu mới và xác nhận mật khẩu mới
+N|n10b|action|0|13|Chọn "Lưu mật khẩu mới"
+N|n11|action|1|14|Kiểm tra mật khẩu mới và liên kết
+N|d3|decision|1|15|Mật khẩu hợp lệ?
+N|n12|action|1|16|Lưu mật khẩu mới, báo đã đổi mật khẩu
+N|n13|action|0|17|Đăng nhập bằng mật khẩu mới
+N|end|end|0|18|
+E|start|n1||f
+E|n1|n2||f
+E|n2|n2b||f
+E|n2b|n3||f
+E|n3|d1||f
+E|d1|n4|Có|f
+E|n4|n5||f
+E|n5|n6||f
+E|n6|n7||f
+E|n7|d2||f
+E|d2|n8|Không|f
+E|d2|n9|Có|f
+E|n9|n10||f
+E|n10|n10b||f
+E|n10b|n11||f
+E|n11|d3||f
+E|d3|n12|Có|f
+E|n12|n13||f
+E|n13|end||f
+E|d1|n2|Không|loop
+E|n8|n2||lloop
+E|d3|n10|Không|loop

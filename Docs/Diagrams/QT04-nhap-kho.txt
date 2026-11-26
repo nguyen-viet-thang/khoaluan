@@ -1,0 +1,36 @@
+PAGE|QT04. Quy trình nhập kho
+TITLE|SƠ ĐỒ HOẠT ĐỘNG: QUY TRÌNH NHẬP KHO (QT04)
+INFO|UC04|Quy trình nhập kho.
+INFO|Chức năng đáp ứng|FR23 (CN52 – Nhập kho; CN53 – Xem lịch sử nhập xuất kho).
+INFO|Tác nhân|Quản trị viên.
+INFO|Mô tả|Cho phép quản trị viên nhập thêm hàng cho từng phiên bản sản phẩm bằng cách chọn phiên bản, nhập số lượng và ghi chú. Hệ thống cộng tồn kho và ghi lịch sử nhập xuất kho; hàng xuất kho do bán hàng, đổi bảo hành và hàng hoàn kho do hủy đơn được hệ thống tự ghi.
+INFO|Tiền điều kiện|Quản trị viên đã đăng nhập trang quản trị; sản phẩm cần nhập đã có ít nhất một phiên bản.
+INFO|Hậu điều kiện|Tồn kho của phiên bản được tăng thêm số lượng nhập; lịch sử nhập xuất kho ghi nhận giao dịch nhập hàng.
+LANE|Quản trị viên
+LANE|Hệ thống
+N|start|start|0|0|
+N|n1|action|0|1|Mở danh sách sản phẩm, tìm sản phẩm cần nhập hàng
+N|n2|action|0|2|Chọn sản phẩm cần nhập kho
+N|n3|action|1|3|Hiển thị chi tiết sản phẩm, các phiên bản kèm tồn kho và lịch sử kho
+N|n4|action|0|4|Chọn phiên bản, nhập số lượng và ghi chú
+N|n5|action|0|5|Chọn "Nhập kho"
+N|n6|action|1|5|Kiểm tra phiên bản và số lượng nhập
+N|d1|decision|1|6|Thông tin hợp lệ?
+N|n7|action|1|7|Cộng số lượng nhập vào tồn kho của phiên bản
+N|n8|action|1|8|Ghi lịch sử kho: loại Nhập hàng, số lượng, ghi chú
+N|n9|action|1|9|Hiển thị tồn kho, lịch sử kho mới và báo cập nhật thành công
+N|n10|action|0|9|Xem tồn kho và lịch sử kho đã cập nhật
+N|end|end|0|10|
+E|start|n1||f
+E|n1|n2||f
+E|n2|n3||f
+E|n3|n4||f
+E|n4|n5||f
+E|n5|n6||f
+E|n6|d1||f
+E|d1|n7|Có|f
+E|n7|n8||f
+E|n8|n9||f
+E|n9|n10||f
+E|n10|end||f
+E|d1|n4|Không|loop

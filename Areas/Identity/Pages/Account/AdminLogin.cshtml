@@ -15,8 +15,8 @@
                 <hr />
                 <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
                 <div class="form-floating mb-3">
-                    <input asp-for="Input.PhoneNumber" class="form-control" type="tel" inputmode="tel" autocomplete="username" aria-required="true" placeholder="0901234567" />
-                    <label asp-for="Input.PhoneNumber" class="form-label">Số điện thoại</label>
+                    <input asp-for="Input.PhoneNumber" class="form-control" type="text" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" aria-required="true" placeholder="ten.nhanvien@gmail.com" />
+                    <label asp-for="Input.PhoneNumber" class="form-label">Gmail hoặc số điện thoại</label>
                     <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
                 </div>
                 <div class="form-floating mb-3">
@@ -32,6 +32,7 @@
                 </div>
                 <button type="submit" class="w-100 btn btn-lg btn-primary">Đăng nhập quản trị</button>
                 <div class="identity-account-links">
+                    <p><a asp-page="./ForgotPassword">Quên mật khẩu? (đặt lại qua Gmail)</a></p>
                     <p><a href="/login">Đăng nhập dành cho khách hàng</a></p>
                 </div>
             </form>

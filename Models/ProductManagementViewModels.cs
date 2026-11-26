@@ -173,8 +173,6 @@ public sealed class StockAdjustmentViewModel
     [Required(ErrorMessage = "Vui lòng chọn phiên bản.")]
     public int? VariantId { get; set; }
 
-    public InventoryTransactionType Type { get; set; } = InventoryTransactionType.Import;
-
     [Range(1, 100_000, ErrorMessage = "Số lượng phải từ 1 đến 100.000.")]
     public int Quantity { get; set; } = 1;
 

@@ -20,4 +20,7 @@ public interface IAccountEmailService
     /// mail server (false = no SMTP configured or sending failed; the reason is logged, never thrown).
     /// </summary>
     Task<bool> SendEmailConfirmationAsync(string toAddress, string? fullName, string confirmationUrl, CancellationToken cancellationToken = default);
+
+    /// <summary>Emails the "set a new password" link. Same delivery contract as <see cref="SendEmailConfirmationAsync"/>.</summary>
+    Task<bool> SendPasswordResetAsync(string toAddress, string? fullName, string resetUrl, CancellationToken cancellationToken = default);
 }

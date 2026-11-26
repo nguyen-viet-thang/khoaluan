@@ -11,6 +11,7 @@
         InventoryTransactionType.AdjustmentDecrease => "Điều chỉnh giảm",
         InventoryTransactionType.ClaimReplacement => "Xuất đổi bảo hành",
         InventoryTransactionType.ClaimRestock => "Nhập lại hàng trả",
+        InventoryTransactionType.OrderCancelRestock => "Hoàn kho do hủy đơn",
         _ => "Khác"
     };
 }
@@ -161,7 +162,7 @@
 <div class="row g-4 mb-4">
     <div class="col-lg-4">
         <section class="admin-detail-card h-100">
-            <h3>Nhập / điều chỉnh kho</h3>
+            <h3>Nhập kho</h3>
             @if (Model.Variants.Count == 0)
             {
                 <p class="admin-stat-note">Hãy thêm phiên bản trước khi nhập kho.</p>
@@ -180,22 +181,15 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label asp-for="StockAdjustment.Type" class="form-label">Loại giao dịch</label>
-                        <select asp-for="StockAdjustment.Type" class="form-select">
-                            <option value="@InventoryTransactionType.Import">Nhập hàng</option>
-                            <option value="@InventoryTransactionType.AdjustmentIncrease">Điều chỉnh tăng (kiểm kê, hàng trả lại)</option>
-                            <option value="@InventoryTransactionType.AdjustmentDecrease">Điều chỉnh giảm (hư hỏng, thất lạc)</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label asp-for="StockAdjustment.Quantity" class="form-label">Số lượng</label>
+                        <label asp-for="StockAdjustment.Quantity" class="form-label">Số lượng nhập</label>
                         <input asp-for="StockAdjustment.Quantity" type="number" min="1" max="100000" class="form-control" required />
                     </div>
                     <div class="mb-3">
                         <label asp-for="StockAdjustment.Note" class="form-label">Ghi chú</label>
                         <input asp-for="StockAdjustment.Note" class="form-control" maxlength="500" placeholder="VD: Nhập lô hàng tháng 11" />
                     </div>
-                    <button type="submit" class="btn btn-primary w-100"><i class="fa fa-check me-2"></i>Cập nhật tồn kho</button>
+                    <p class="admin-stat-note">Hàng xuất kho (bán hàng, đổi bảo hành) và hàng hoàn kho (hủy đơn, khách trả) được hệ thống ghi tự động.</p>
+                    <button type="submit" class="btn btn-primary w-100"><i class="fa fa-check me-2"></i>Nhập kho</button>
                 </form>
             }
         </section>

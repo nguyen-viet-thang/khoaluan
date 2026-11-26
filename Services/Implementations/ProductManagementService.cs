@@ -411,34 +411,19 @@ public sealed class ProductManagementService : IProductManagementService
 
     public async Task<int> AdjustStockAsync(StockAdjustmentViewModel adjustment, CancellationToken cancellationToken = default)
     {
-        if (adjustment.Type is not (InventoryTransactionType.Import
-            or InventoryTransactionType.AdjustmentIncrease
-            or InventoryTransactionType.AdjustmentDecrease))
-        {
-            throw new InvalidOperationException("Loại giao dịch kho không hợp lệ.");
-        }
-
+        // Admin stock entry is import-only; outgoing stock is recorded automatically by orders and claims.
         return await _unitOfWork.ExecuteInTransactionAsync(async token =>
         {
             var variant = await _repository.GetVariantAsync(adjustment.VariantId ?? 0, token)
                 ?? throw new KeyNotFoundException();
-            var delta = adjustment.Type == InventoryTransactionType.AdjustmentDecrease
-                ? -adjustment.Quantity
-                : adjustment.Quantity;
-
-            if (variant.StockQuantity + delta < 0)
-            {
-                throw new InvalidOperationException(
-                    $"Không thể giảm {adjustment.Quantity} vì phiên bản {variant.SKU} chỉ còn {variant.StockQuantity} trong kho.");
-            }
 
             var now = DateTime.UtcNow;
-            variant.StockQuantity += delta;
+            variant.StockQuantity += adjustment.Quantity;
             variant.InventoryTransactions.Add(new InventoryTransaction
             {
-                Type = adjustment.Type,
-                Quantity = delta,
-                Note = NormalizeOptional(adjustment.Note) ?? DefaultInventoryNote(adjustment.Type),
+                Type = InventoryTransactionType.Import,
+                Quantity = adjustment.Quantity,
+                Note = NormalizeOptional(adjustment.Note) ?? "Nhập hàng",
                 CreatedAt = now
             });
             variant.Product!.UpdatedAt = now;
@@ -684,14 +669,6 @@ public sealed class ProductManagementService : IProductManagementService
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-
-    private static string DefaultInventoryNote(InventoryTransactionType type) => type switch
-    {
-        InventoryTransactionType.Import => "Nhập hàng",
-        InventoryTransactionType.AdjustmentIncrease => "Điều chỉnh tăng tồn kho",
-        InventoryTransactionType.AdjustmentDecrease => "Điều chỉnh giảm tồn kho",
-        _ => "Giao dịch kho"
-    };
 
     #endregion
 }

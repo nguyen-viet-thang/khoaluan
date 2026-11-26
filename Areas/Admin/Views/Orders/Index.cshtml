@@ -23,7 +23,7 @@
         _ => "Không xác định"
     };
 }
-<div class="admin-page-heading"><div><h2>Danh sách đơn hàng</h2><p>Tìm kiếm và theo dõi các đơn hàng của cửa hàng.</p></div></div>
+<div class="admin-page-heading"><div><h2>Danh sách đơn hàng</h2><p>Đơn được sắp theo mức ưu tiên xử lý: Chờ xác nhận → Đã xác nhận → Đang xử lý → Đang giao → Đã giao → Đã hủy.</p></div></div>
 <form class="admin-toolbar" method="get">
     <input class="form-control" type="search" name="search" value="@Model.Search" placeholder="Mã đơn, tên hoặc số điện thoại" aria-label="Tìm đơn hàng" />
     <select class="form-select" name="status" aria-label="Lọc theo trạng thái">
@@ -45,9 +45,19 @@
     else
     {
         <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Điện thoại</th><th>Ngày đặt</th><th>Trạng thái</th><th>Tổng tiền</th><th></th></tr></thead><tbody>
-        @foreach (var order in Model.Orders)
+        @foreach (var group in Model.Orders.GroupBy(order => order.Status))
         {
+            var isOpen = group.Key is not (OrderStatus.Completed or OrderStatus.Cancelled);
+            <tr class="admin-table__group">
+                <td colspan="7">
+                    <span class="admin-status @StatusClass(group.Key)">@StatusText(group.Key)</span>
+                    <span class="admin-table__group-count">@group.Count() đơn · @(isOpen ? "đơn đặt sớm nhất ở trên" : "đơn mới nhất ở trên")</span>
+                </td>
+            </tr>
+            @foreach (var order in group)
+            {
             <tr><td><a class="admin-link" asp-area="Admin" asp-controller="Orders" asp-action="Details" asp-route-id="@order.Id">@order.OrderCode</a></td><td>@order.CustomerName</td><td>@order.CustomerPhone</td><td>@order.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td><td><span class="admin-status @StatusClass(order.Status)">@order.StatusText</span></td><td>@order.TotalAmount.ToString("N0") ₫</td><td><a class="btn btn-sm btn-outline-primary" asp-area="Admin" asp-controller="Orders" asp-action="Details" asp-route-id="@order.Id">Xử lý</a></td></tr>
+            }
         }
         </tbody></table></div>
     }

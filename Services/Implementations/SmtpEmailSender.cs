@@ -91,14 +91,39 @@ public sealed class AccountEmailService : IAccountEmailService
             </div>
             """;
 
+        return await TrySendAsync(toAddress, fullName, "Xác thực email tài khoản PôpPôp", body, cancellationToken);
+    }
+
+    public async Task<bool> SendPasswordResetAsync(string toAddress, string? fullName, string resetUrl, CancellationToken cancellationToken = default)
+    {
+        var name = WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(fullName) ? "bạn" : fullName);
+        var link = WebUtility.HtmlEncode(resetUrl);
+        var body = $"""
+            <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#222;max-width:560px">
+              <h2 style="color:#e53637;margin-bottom:8px">PôpPôp – Đặt lại mật khẩu</h2>
+              <p>Xin chào {name},</p>
+              <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản <strong>{WebUtility.HtmlEncode(toAddress)}</strong>. Bấm nút bên dưới để xác nhận và đặt mật khẩu mới:</p>
+              <p style="margin:24px 0">
+                <a href="{link}" style="background:#e53637;color:#fff;text-decoration:none;padding:12px 24px;border-radius:4px;font-weight:bold">Đặt mật khẩu mới</a>
+              </p>
+              <p>Nếu nút không hoạt động, hãy sao chép đường dẫn sau vào trình duyệt:<br /><a href="{link}">{link}</a></p>
+              <p>Liên kết chỉ dùng được một lần và có hiệu lực trong 24 giờ. Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này – mật khẩu hiện tại vẫn giữ nguyên.</p>
+            </div>
+            """;
+
+        return await TrySendAsync(toAddress, fullName, "Đặt lại mật khẩu tài khoản PôpPôp", body, cancellationToken);
+    }
+
+    private async Task<bool> TrySendAsync(string toAddress, string? fullName, string subject, string body, CancellationToken cancellationToken)
+    {
         try
         {
-            return await _emailSender.SendAsync(toAddress, fullName, "Xác thực email tài khoản PôpPôp", body, cancellationToken);
+            return await _emailSender.SendAsync(toAddress, fullName, subject, body, cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // A mail problem must never break registration/login: the page tells the user it could not be sent.
-            _logger.LogError(exception, "Could not send the confirmation email to {To}.", toAddress);
+            // A mail problem must never break the account pages: the page tells the user it could not be sent.
+            _logger.LogError(exception, "Could not send \"{Subject}\" to {To}.", subject, toAddress);
             return false;
         }
     }

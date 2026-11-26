@@ -11,4 +11,11 @@ public sealed class DashboardController : Controller
     {
         return RedirectToAction("Index", "Orders", new { area = "Staff" });
     }
+
+    /// <summary>What a staff account can and cannot do in the system.</summary>
+    [HttpGet]
+    public IActionResult Permissions()
+    {
+        return View();
+    }
 }

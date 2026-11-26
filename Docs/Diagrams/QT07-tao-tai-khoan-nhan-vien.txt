@@ -1,0 +1,46 @@
+PAGE|QT07. Quy trình tạo tài khoản nhân viên
+TITLE|SƠ ĐỒ HOẠT ĐỘNG: QUY TRÌNH TẠO TÀI KHOẢN NHÂN VIÊN (QT07)
+INFO|UC07|Quy trình tạo tài khoản nhân viên.
+INFO|Chức năng đáp ứng|FR26, FR03, FR04 (CN60 – Thêm nhân viên; CN05 – Đăng nhập trang quản lý; CN08 – Đổi mật khẩu).
+INFO|Tác nhân|Quản trị viên, Nhân viên.
+INFO|Mô tả|Cho phép quản trị viên tạo tài khoản cho nhân viên bằng họ tên, Gmail và số điện thoại; mật khẩu ban đầu là số điện thoại của nhân viên. Nhân viên đăng nhập trang quản lý bằng Gmail và bắt buộc đổi sang mật khẩu của riêng mình ở lần đăng nhập đầu tiên trước khi sử dụng các chức năng khác.
+INFO|Tiền điều kiện|Quản trị viên đã đăng nhập trang quản trị; Gmail và số điện thoại của nhân viên chưa thuộc tài khoản nào khác.
+INFO|Hậu điều kiện|Tài khoản nhân viên mới được tạo lập và nhân viên đã đặt mật khẩu riêng; nhân viên có thể bắt đầu sử dụng trang nhân viên.
+LANE|Quản trị viên
+LANE|Hệ thống
+LANE|Nhân viên
+N|start|start|0|0|
+N|n1|action|0|1|Mở trang quản lý nhân viên, chọn "Tạo tài khoản nhân viên"
+N|n2|action|0|2|Nhập họ tên, Gmail và số điện thoại của nhân viên
+N|n3|action|0|3|Chọn "Tạo tài khoản"
+N|n4|action|1|4|Kiểm tra thông tin; Gmail và số điện thoại chưa thuộc tài khoản khác
+N|d1|decision|1|5|Thông tin hợp lệ?
+N|n5|action|1|6|Tạo tài khoản nhân viên, mật khẩu ban đầu là số điện thoại, bắt buộc đổi mật khẩu
+N|n6|action|1|7|Hiển thị mật khẩu ban đầu cho quản trị viên
+N|n7|action|0|8|Bàn giao Gmail và mật khẩu ban đầu cho nhân viên
+N|n8|action|2|9|Đăng nhập trang quản lý bằng Gmail và mật khẩu ban đầu
+N|n9|action|1|10|Kiểm tra đăng nhập, chuyển tới trang đổi mật khẩu
+N|n10|action|2|11|Nhập mật khẩu hiện tại, mật khẩu mới, xác nhận; chọn "Cập nhật mật khẩu"
+N|n11|action|1|12|Kiểm tra mật khẩu hiện tại và mật khẩu mới
+N|d2|decision|1|13|Mật khẩu hợp lệ?
+N|n12|action|1|14|Lưu mật khẩu mới, bỏ yêu cầu đổi mật khẩu, chuyển tới trang nhân viên
+N|n13|action|2|15|Bắt đầu sử dụng trang nhân viên
+N|end|end|2|16|
+E|start|n1||f
+E|n1|n2||f
+E|n2|n3||f
+E|n3|n4||f
+E|n4|d1||f
+E|d1|n5|Có|f
+E|n5|n6||f
+E|n6|n7||f
+E|n7|n8||f
+E|n8|n9||f
+E|n9|n10||f
+E|n10|n11||f
+E|n11|d2||f
+E|d2|n12|Có|f
+E|n12|n13||f
+E|n13|end||f
+E|d1|n2|Không|lloop
+E|d2|n10|Không|loop

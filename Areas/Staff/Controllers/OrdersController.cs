@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PopPop.Data.Entities.Enums;
 using PopPop.Services.Interfaces;
@@ -37,7 +37,12 @@ public sealed class OrdersController : Controller
         try
         {
             await _orderService.UpdateOrderStatusAsync(id, nextStatus, cancelReason, User.Identity?.Name ?? "nhân viên", cancellationToken);
-            TempData["SuccessMessage"] = "Đã cập nhật trạng thái đơn hàng.";
+            var updated = await _orderService.GetManagementOrderDetailsAsync(id, cancellationToken);
+            TempData["SuccessMessage"] = updated is null
+                ? "Đã cập nhật trạng thái đơn hàng."
+                : $"Đã chuyển đơn {updated.OrderCode} sang \"{updated.StatusText}\".";
+            // Back to the work queue: the order now sits in its new status group.
+            return RedirectToAction(nameof(Index));
         }
         catch (KeyNotFoundException)
         {

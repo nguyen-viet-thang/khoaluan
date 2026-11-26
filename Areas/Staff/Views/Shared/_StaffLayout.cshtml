@@ -21,6 +21,8 @@
             <nav class="admin-nav" aria-label="Điều hướng nhân viên">
                 <a asp-area="Staff" asp-controller="Orders" asp-action="Index"><i class="fa fa-shopping-bag"></i>Đơn hàng cần xử lý @if (staffBadges.PendingOrderCount > 0) { <span class="admin-nav__count" title="Đơn chờ xác nhận">@staffBadges.PendingOrderCount</span> }</a>
                 <a asp-area="Staff" asp-controller="Claims" asp-action="Index"><i class="fa fa-wrench"></i>Bảo hành &amp; đổi hàng @if (staffBadges.PendingClaimCount > 0) { <span class="admin-nav__count" title="Yêu cầu chờ duyệt">@staffBadges.PendingClaimCount</span> }</a>
+                <a asp-area="Staff" asp-controller="Dashboard" asp-action="Permissions"><i class="fa fa-shield"></i>Quyền hạn của tôi</a>
+                <a asp-area="Identity" asp-page="/Account/Manage/ChangePassword"><i class="fa fa-key"></i>Đổi mật khẩu</a>
                 <a asp-area="" asp-controller="Home" asp-action="Index"><i class="fa fa-external-link"></i>Xem cửa hàng</a>
             </nav>
             <form class="admin-logout" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="/admin/login" method="post">

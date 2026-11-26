@@ -3,10 +3,10 @@
     ViewData["Title"] = "Tạo tài khoản nhân viên";
 }
 <div class="admin-page-heading">
-    <div><h2>Tạo tài khoản nhân viên</h2><p>Nhân viên đăng nhập tại trang quản trị bằng số điện thoại và mật khẩu ban đầu, rồi đổi sang mật khẩu riêng.</p></div>
-    <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="StaffAccounts" asp-action="Index"><i class="fa fa-arrow-left me-1"></i>Danh sách tài khoản</a>
+    <div><h2>Tạo tài khoản nhân viên</h2><p>Nhân viên đăng nhập tại /admin/login bằng Gmail của mình, mật khẩu ban đầu là số điện thoại; lần đăng nhập đầu tiên bắt buộc đổi mật khẩu.</p></div>
+    <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="StaffAccounts" asp-action="Index"><i class="fa fa-arrow-left"></i>Danh sách tài khoản</a>
 </div>
-<div class="admin-detail-card" style="max-width:680px">
+<div class="admin-detail-card mb-4" style="max-width:680px">
     <form asp-area="Admin" asp-controller="StaffAccounts" asp-action="Create" method="post" autocomplete="off">
         <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
         <div class="mb-3">
@@ -15,23 +15,27 @@
             <span asp-validation-for="FullName" class="text-danger"></span>
         </div>
         <div class="mb-3">
+            <label asp-for="Email" class="form-label"></label>
+            <input asp-for="Email" class="form-control" type="email" inputmode="email" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="256" placeholder="ten.nhanvien@gmail.com" />
+            <span asp-validation-for="Email" class="text-danger"></span>
+            <div class="form-text">Gmail riêng của nhân viên, dùng làm tên đăng nhập. Không trùng với tài khoản khách hàng hoặc nhân viên khác.</div>
+        </div>
+        <div class="mb-3">
             <label asp-for="PhoneNumber" class="form-label"></label>
             <input asp-for="PhoneNumber" class="form-control" type="tel" inputmode="tel" autocomplete="off" maxlength="20" placeholder="0901234567" />
             <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+            <div class="form-text">Số điện thoại cũng là <strong>mật khẩu ban đầu</strong> (dạng 0xxxxxxxxx). Nhân viên phải đổi sang mật khẩu riêng ngay khi đăng nhập lần đầu.</div>
         </div>
-        <div class="mb-3">
-            <label asp-for="InitialPassword" class="form-label"></label>
-            <input asp-for="InitialPassword" class="form-control" autocomplete="new-password" maxlength="100" />
-            <span asp-validation-for="InitialPassword" class="text-danger"></span>
-            <div class="form-text">Cần ít nhất 6 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt. Mật khẩu sẽ hiển thị một lần sau khi tạo để bạn bàn giao.</div>
-        </div>
-        <div class="alert alert-info">Tài khoản có quyền xử lý đơn hàng. Ở lần đăng nhập đầu tiên, nhân viên bắt buộc phải đổi mật khẩu.</div>
         <div class="admin-actions">
-            <button type="submit" class="btn btn-primary"><i class="fa fa-user-plus me-2"></i>Tạo tài khoản</button>
+            <button type="submit" class="btn btn-primary"><i class="fa fa-user-plus"></i>Tạo tài khoản</button>
             <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="StaffAccounts" asp-action="Index">Hủy</a>
         </div>
     </form>
 </div>
+<section class="admin-detail-card">
+    <h3>Quyền của tài khoản nhân viên</h3>
+    <partial name="_StaffPermissions" />
+</section>
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 }

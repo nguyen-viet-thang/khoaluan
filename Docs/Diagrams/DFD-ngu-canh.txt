@@ -1,0 +1,46 @@
+CENTER|Hệ thống|(Website quản lý và bán hàng cửa hàng cầu lông PôpPôp)
+ENTITY|TL|Khách hàng|(Người dùng đã đăng ký tài khoản)
+OUT|TL|Thông tin đăng nhập (email, mật khẩu)
+OUT|TL|Thông tin cá nhân, mật khẩu mới
+OUT|TL|Yêu cầu đặt lại mật khẩu qua email
+OUT|TL|Sản phẩm, số lượng thêm vào giỏ hàng
+OUT|TL|Thông tin giao hàng, yêu cầu đặt hàng (COD)
+OUT|TL|Yêu cầu hủy đơn hàng
+OUT|TL|Yêu cầu bảo hành / đổi hàng kèm video minh chứng
+OUT|TL|Thông tin gửi hàng, xác nhận đã nhận sản phẩm
+IN|TL|Danh sách, chi tiết sản phẩm, kết quả tìm kiếm
+IN|TL|Giỏ hàng, tạm tính, phí vận chuyển
+IN|TL|Chi tiết, lịch sử và trạng thái đơn hàng
+IN|TL|Tiến trình yêu cầu bảo hành, lời nhắn cửa hàng
+IN|TL|Thông báo về đơn hàng và yêu cầu bảo hành
+IN|TL|Email liên kết đặt lại mật khẩu
+ENTITY|BL|Khách vãng lai|(Người chưa có tài khoản)
+OUT|BL|Từ khóa tìm kiếm, bộ lọc sản phẩm
+OUT|BL|Thông tin đăng ký (họ tên, email, mật khẩu)
+OUT|BL|Xác thực email, yêu cầu gửi lại liên kết
+IN|BL|Danh sách, chi tiết sản phẩm, kết quả tìm kiếm
+IN|BL|Email liên kết xác thực tài khoản
+IN|BL|Kết quả đăng ký, xác thực email
+ENTITY|TR|Quản trị viên|(Chủ cửa hàng)
+OUT|TR|Thông tin đăng nhập trang quản trị
+OUT|TR|Thông tin sản phẩm, phiên bản, hình ảnh, thông số
+OUT|TR|Thông tin danh mục, thương hiệu
+OUT|TR|Số lượng nhập kho, ghi chú
+OUT|TR|Khóa / mở khóa, cấp mật khẩu tạm cho khách hàng
+OUT|TR|Thông tin tài khoản nhân viên
+OUT|TR|Chính sách bảo hành, loại lỗi
+OUT|TR|Khoảng thời gian thống kê doanh thu
+IN|TR|Danh sách sản phẩm, tồn kho, lịch sử nhập xuất kho
+IN|TR|Thông tin và lịch sử mua hàng của khách hàng
+IN|TR|Danh sách nhân viên, mật khẩu ban đầu
+IN|TR|Tổng quan, báo cáo doanh thu, tệp Excel
+IN|TR|Thông báo đơn hàng mới, yêu cầu bảo hành mới
+ENTITY|BR|Nhân viên|(Nhân viên cửa hàng)
+OUT|BR|Thông tin đăng nhập, mật khẩu mới
+OUT|BR|Cập nhật trạng thái đơn hàng, lý do hủy
+OUT|BR|Quyết định xử lý yêu cầu bảo hành
+OUT|BR|Thông tin vận chuyển sản phẩm thay thế
+OUT|BR|Ghi chú nội bộ, lời nhắn cho khách hàng
+IN|BR|Danh sách, chi tiết đơn hàng
+IN|BR|Danh sách, chi tiết yêu cầu bảo hành, minh chứng
+IN|BR|Thông báo đơn hàng mới, yêu cầu bảo hành mới

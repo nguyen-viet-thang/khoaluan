@@ -4,15 +4,21 @@
     ViewData["Title"] = $"Nhân viên {Model.FullName}";
 }
 <div class="admin-page-heading">
-    <div><h2>@Model.FullName</h2><p>@Model.PhoneNumber · tạo ngày @Model.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</p></div>
-    <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="StaffAccounts" asp-action="Index"><i class="fa fa-arrow-left me-1"></i>Danh sách nhân viên</a>
+    <div><h2>@Model.FullName</h2><p>@(string.IsNullOrEmpty(Model.Email) ? "Chưa có Gmail" : Model.Email) · @Model.PhoneNumber · tạo ngày @Model.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</p></div>
+    <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="StaffAccounts" asp-action="Index"><i class="fa fa-arrow-left"></i>Danh sách nhân viên</a>
 </div>
 
 @if (TempData[StaffAccountsController.IssuedPasswordKey] is string issuedPassword)
 {
     <div class="alert alert-success" role="alert">
-        Mật khẩu tạm của <strong>@Model.PhoneNumber</strong>: <code style="font-size:1.25rem">@issuedPassword</code><br />
-        Hãy bàn giao trực tiếp cho nhân viên. Mật khẩu chỉ hiển thị một lần; nhân viên phải đổi mật khẩu ngay khi đăng nhập.
+        Đã đặt lại mật khẩu về số điện thoại của nhân viên: <code style="font-size:1.25rem">@issuedPassword</code><br />
+        Nhân viên đăng nhập bằng Gmail @(string.IsNullOrEmpty(Model.Email) ? string.Empty : $"({Model.Email})") và mật khẩu này, rồi bắt buộc đổi mật khẩu mới.
+    </div>
+}
+@if (string.IsNullOrEmpty(Model.Email))
+{
+    <div class="alert alert-warning" role="alert">
+        Tài khoản này được tạo trước khi dùng Gmail và vẫn đăng nhập bằng số điện thoại. Hãy nhập Gmail của nhân viên bên dưới để chuyển sang đăng nhập bằng Gmail.
     </div>
 }
 
@@ -27,12 +33,18 @@
                 <span asp-validation-for="FullName" class="text-danger"></span>
             </div>
             <div class="mb-3">
+                <label asp-for="Email" class="form-label"></label>
+                <input asp-for="Email" class="form-control" type="email" inputmode="email" autocapitalize="none" spellcheck="false" maxlength="256" placeholder="ten.nhanvien@gmail.com" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+                <div class="form-text">Đổi Gmail cũng đổi tên đăng nhập của nhân viên.</div>
+            </div>
+            <div class="mb-3">
                 <label asp-for="PhoneNumber" class="form-label"></label>
                 <input asp-for="PhoneNumber" class="form-control" type="tel" inputmode="tel" maxlength="20" />
                 <span asp-validation-for="PhoneNumber" class="text-danger"></span>
-                <div class="form-text">Đổi số điện thoại cũng đổi tên đăng nhập của nhân viên.</div>
+                <div class="form-text">Đổi số điện thoại không đổi mật khẩu hiện tại; số mới chỉ thành mật khẩu khi bạn đặt lại mật khẩu.</div>
             </div>
-            <button type="submit" class="btn btn-primary"><i class="fa fa-save me-2"></i>Lưu thay đổi</button>
+            <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i>Lưu thay đổi</button>
         </form>
     </section>
 
@@ -55,14 +67,20 @@
         </div>
         @if (!Model.IsLocked)
         {
-            <p class="admin-stat-note mt-3">Khi nhân viên quên mật khẩu, tạo mật khẩu tạm và bàn giao trực tiếp. Mật khẩu cũ hết hiệu lực, nhân viên bị đăng xuất và phải đổi mật khẩu ở lần đăng nhập kế tiếp.</p>
+            <div class="admin-detail-row"><span>Tên đăng nhập</span><span>@(string.IsNullOrEmpty(Model.Email) ? Model.PhoneNumber : Model.Email)</span></div>
+            <p class="admin-stat-note mt-3">Khi nhân viên quên mật khẩu, đặt lại mật khẩu về số điện thoại của nhân viên (@Model.PhoneNumber). Mật khẩu cũ hết hiệu lực, nhân viên bị đăng xuất và phải đổi mật khẩu ở lần đăng nhập kế tiếp.</p>
             <form asp-area="Admin" asp-controller="StaffAccounts" asp-action="ResetPassword" asp-route-id="@Model.Id" method="post"
-                  onsubmit="return confirm('Tạo mật khẩu tạm cho @Model.FullName? Mật khẩu hiện tại sẽ không dùng được nữa.');">
-                <button type="submit" class="btn btn-outline-primary"><i class="fa fa-key me-2"></i>Tạo mật khẩu tạm</button>
+                  onsubmit="return confirm('Đặt lại mật khẩu của @Model.FullName về số điện thoại? Mật khẩu hiện tại sẽ không dùng được nữa.');">
+                <button type="submit" class="btn btn-outline-primary"><i class="fa fa-key"></i>Đặt lại mật khẩu về số điện thoại</button>
             </form>
         }
     </section>
 </div>
+
+<section class="admin-detail-card mb-4">
+    <h3>Quyền của nhân viên trên hệ thống</h3>
+    <partial name="_StaffPermissions" />
+</section>
 
 <section class="admin-detail-card @(Model.IsLocked ? "admin-danger-zone" : string.Empty)">
     <h3>Khóa tài khoản</h3>

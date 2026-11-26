@@ -1,0 +1,51 @@
+PAGE|QT01. Quy trình đặt hàng
+TITLE|SƠ ĐỒ HOẠT ĐỘNG: QUY TRÌNH ĐẶT HÀNG (QT01)
+INFO|Chức năng đáp ứng|FR11, FR12 (CN16 – Thêm sản phẩm vào giỏ hàng; CN17 – Xem giỏ hàng; CN18 – Cập nhật số lượng trong giỏ; CN19 – Xóa sản phẩm khỏi giỏ; CN20 – Đặt hàng).
+INFO|Tác nhân|Khách hàng.
+INFO|Mô tả|Cho phép khách hàng chọn sản phẩm vào giỏ hàng, nhập thông tin giao hàng và đặt đơn hàng với hình thức thanh toán khi nhận hàng (COD). Hệ thống kiểm tra tồn kho, tạo đơn hàng ở trạng thái Chờ xác nhận và thông báo cho nhân viên cửa hàng.
+INFO|Tiền điều kiện|Khách hàng đã đăng nhập; sản phẩm đang được bán (sản phẩm, danh mục và thương hiệu đều đang hoạt động) và còn hàng.
+INFO|Hậu điều kiện|Đơn hàng mới được tạo ở trạng thái Chờ xác nhận, tồn kho được trừ và giỏ hàng được làm trống; nhân viên nhận thông báo để xử lý đơn hàng.
+LANE|Khách hàng
+LANE|Hệ thống
+N|start|start|0|0|
+N|n1|action|0|1|Chọn phiên bản và số lượng sản phẩm
+N|n2|action|0|2|Chọn "Thêm vào giỏ"
+N|n3|action|1|2|Kiểm tra sản phẩm còn bán và đủ tồn kho
+N|d1|decision|1|3|Còn bán và đủ tồn kho?
+N|n4|action|1|4|Thêm vào giỏ, hiển thị giỏ hàng
+N|n5|action|0|5|Xem giỏ; cập nhật số lượng hoặc xóa sản phẩm
+N|n6|action|0|6|Chọn "Thanh toán"
+N|n7|action|1|6|Kiểm tra giỏ không trống và đủ tồn kho
+N|d2|decision|1|7|Giỏ hàng hợp lệ?
+N|n8|action|1|8|Hiển thị trang thanh toán, phí vận chuyển, điền sẵn thông tin giao hàng
+N|n9|action|0|9|Nhập tên người nhận, số điện thoại, địa chỉ, ghi chú
+N|n10|action|0|10|Chọn "Đặt hàng"
+N|n11|action|1|10|Kiểm tra thông tin giao hàng và tồn kho
+N|d3|decision|1|11|Thông tin và tồn kho hợp lệ?
+N|n12|action|1|12|Tạo đơn hàng (Chờ xác nhận, COD), trừ tồn kho, làm trống giỏ
+N|n13|action|1|13|Gửi thông báo đơn hàng mới cho nhân viên
+N|n14|action|1|14|Hiển thị chi tiết đơn hàng, báo đặt hàng thành công
+N|n15|action|0|14|Xem đơn hàng vừa đặt
+N|end|end|0|15|
+E|start|n1||f
+E|n1|n2||f
+E|n2|n3||f
+E|n3|d1||f
+E|d1|n4|Có|f
+E|n4|n5||f
+E|n5|n6||f
+E|n6|n7||f
+E|n7|d2||f
+E|d2|n8|Có|f
+E|n8|n9||f
+E|n9|n10||f
+E|n10|n11||f
+E|n11|d3||f
+E|d3|n12|Có|f
+E|n12|n13||f
+E|n13|n14||f
+E|n14|n15||f
+E|n15|end||f
+E|d1|n1|Không|loop
+E|d2|n5|Không|loop
+E|d3|n9|Không|loop

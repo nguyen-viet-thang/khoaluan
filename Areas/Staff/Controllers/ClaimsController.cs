@@ -46,7 +46,12 @@ public sealed class ClaimsController : Controller
             var user = await _userManager.GetUserAsync(User);
             var actorName = user?.FullName ?? user?.UserName ?? "Nhân viên";
             await _claimService.DecideAsync(id, User.FindFirstValue(ClaimTypes.NameIdentifier)!, actorName, decision, cancellationToken);
-            TempData["SuccessMessage"] = $"Đã chuyển yêu cầu sang \"{ClaimDisplay.StatusText(decision.NextStatus)}\".";
+            var updated = await _claimService.GetDetailsForStaffAsync(id, cancellationToken);
+            TempData["SuccessMessage"] = updated is null
+                ? $"Đã chuyển yêu cầu sang \"{ClaimDisplay.StatusText(decision.NextStatus)}\"."
+                : $"Đã chuyển yêu cầu {updated.Code} sang \"{ClaimDisplay.StatusText(decision.NextStatus)}\".";
+            // Back to the work queue: the claim now sits in its new status group.
+            return RedirectToAction(nameof(Index));
         }
         catch (KeyNotFoundException)
         {

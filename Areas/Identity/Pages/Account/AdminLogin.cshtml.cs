@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 using PopPop.Data.Entities;
 
 namespace PopPop.Areas.Identity.Pages.Account;
@@ -28,7 +29,7 @@ public sealed class AdminLoginModel : PageModel
 
     public sealed class InputModel
     {
-        [Required(ErrorMessage = "Vui lòng nhập số điện thoại.")]
+        [Required(ErrorMessage = "Vui lòng nhập Gmail hoặc số điện thoại.")]
         public string PhoneNumber { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Mật khẩu không được để trống.")]
@@ -62,8 +63,7 @@ public sealed class AdminLoginModel : PageModel
             return Page();
         }
 
-        var phone = PopPop.Services.Implementations.PhoneNumberFormatter.Normalize(Input.PhoneNumber);
-        var user = phone is null ? null : await _userManager.FindByNameAsync(phone);
+        var user = await FindManagementUserAsync(Input.PhoneNumber);
         if (user is null)
         {
             ModelState.AddModelError(string.Empty, "Thông tin đăng nhập không hợp lệ hoặc tài khoản không có quyền truy cập khu vực quản trị.");
@@ -107,6 +107,43 @@ public sealed class AdminLoginModel : PageModel
 
         ModelState.AddModelError(string.Empty, "Thông tin đăng nhập không hợp lệ hoặc tài khoản không có quyền truy cập khu vực quản trị.");
         return Page();
+    }
+
+    /// <summary>
+    /// Staff sign in with their Gmail (their phone number also works); the admin and older staff
+    /// accounts use the phone number that is their user name.
+    /// </summary>
+    private async Task<User?> FindManagementUserAsync(string login)
+    {
+        var value = login.Trim();
+        if (value.Contains('@'))
+        {
+            var email = EmailConfirmationLink.Normalize(value);
+            return await _userManager.FindByNameAsync(email) ?? await _userManager.FindByEmailAsync(email);
+        }
+
+        var phone = PopPop.Services.Implementations.PhoneNumberFormatter.Normalize(value);
+        if (!PopPop.Services.Implementations.PhoneNumberFormatter.IsValid(phone))
+        {
+            return null;
+        }
+
+        var byUserName = await _userManager.FindByNameAsync(phone!);
+        if (byUserName is not null)
+        {
+            return byUserName;
+        }
+
+        var samePhone = await _userManager.Users.Where(user => user.PhoneNumber == phone).ToListAsync();
+        foreach (var candidate in samePhone)
+        {
+            if (await GetManagementDestinationAsync(candidate) is not null)
+            {
+                return candidate;
+            }
+        }
+
+        return null;
     }
 
     private async Task<string?> GetManagementDestinationAsync(User user)

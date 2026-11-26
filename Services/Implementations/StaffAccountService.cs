@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using PopPop.Data.Entities;
 using PopPop.Models;
 using PopPop.Services.Interfaces;
@@ -13,18 +14,15 @@ public sealed class StaffAccountService : IStaffAccountService
     private readonly UserManager<User> _userManager;
     private readonly RoleManager<Role> _roleManager;
     private readonly IAccountLockService _accountLockService;
-    private readonly IAccountPasswordService _accountPasswordService;
 
     public StaffAccountService(
         UserManager<User> userManager,
         RoleManager<Role> roleManager,
-        IAccountLockService accountLockService,
-        IAccountPasswordService accountPasswordService)
+        IAccountLockService accountLockService)
     {
         _userManager = userManager;
         _roleManager = roleManager;
         _accountLockService = accountLockService;
-        _accountPasswordService = accountPasswordService;
     }
 
     public async Task<StaffAccountListViewModel> GetListAsync(
@@ -54,6 +52,7 @@ public sealed class StaffAccountService : IStaffAccountService
             var phoneTerm = PhoneNumberFormatter.Normalize(normalizedSearch) ?? normalizedSearch;
             filtered = filtered.Where(account =>
                 account.FullName.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase)
+                || (account.Email?.Contains(normalizedSearch, StringComparison.OrdinalIgnoreCase) ?? false)
                 || account.PhoneNumber.Contains(phoneTerm, StringComparison.Ordinal));
         }
 
@@ -85,6 +84,7 @@ public sealed class StaffAccountService : IStaffAccountService
         {
             Id = user.Id,
             FullName = user.FullName ?? string.Empty,
+            Email = user.Email ?? string.Empty,
             PhoneNumber = LoginOf(user),
             MustChangePassword = user.MustChangePassword,
             IsLocked = _accountLockService.IsLocked(user),
@@ -100,26 +100,29 @@ public sealed class StaffAccountService : IStaffAccountService
             throw new InvalidOperationException("Không tìm thấy vai trò Staff. Vui lòng kiểm tra dữ liệu phân quyền.");
         }
 
+        var email = RequireGmail(model.Email);
         var phone = RequireValidPhone(model.PhoneNumber);
-        if (await _userManager.FindByNameAsync(phone) is not null)
-        {
-            throw new InvalidOperationException($"Số điện thoại {phone} đã thuộc một tài khoản khác (khách hàng hoặc nhân viên).");
-        }
+        await EnsureEmailAvailableAsync(email, exceptUserId: null);
+        await EnsurePhoneAvailableAsync(phone, exceptUserId: null);
 
-        var password = string.IsNullOrWhiteSpace(model.InitialPassword)
-            ? _accountPasswordService.GenerateTemporaryPassword()
-            : model.InitialPassword;
         var user = new User
         {
-            UserName = phone,
+            // The staff member's own Gmail is the login; the phone number is the initial password.
+            UserName = email,
+            Email = email,
+            // Entered by the admin for an employee: no verification mail is needed to sign in.
+            EmailConfirmed = true,
             PhoneNumber = phone,
             FullName = model.FullName.Trim(),
             CreatedAt = DateTime.UtcNow,
             // The admin knows this password: the staff member must replace it at the first sign-in.
             MustChangePassword = true
         };
+        // Hashed directly: a phone number (digits only) would fail the password policy, which still
+        // applies to the new password the staff member must choose at the first sign-in.
+        user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, phone);
 
-        EnsureSucceeded(await _userManager.CreateAsync(user, password));
+        EnsureSucceeded(await _userManager.CreateAsync(user));
         var roleResult = await _userManager.AddToRoleAsync(user, StaffRole);
         if (!roleResult.Succeeded)
         {
@@ -127,19 +130,26 @@ public sealed class StaffAccountService : IStaffAccountService
             EnsureSucceeded(roleResult);
         }
 
-        return password;
+        return phone;
     }
 
     public async Task UpdateAsync(EditStaffAccountViewModel model, CancellationToken cancellationToken = default)
     {
         var user = await FindStaffAsync(model.Id);
+        var email = RequireGmail(model.Email);
         var phone = RequireValidPhone(model.PhoneNumber);
-        if (!string.Equals(phone, user.UserName, StringComparison.Ordinal))
+        await EnsureEmailAvailableAsync(email, user.Id);
+        await EnsurePhoneAvailableAsync(phone, user.Id);
+
+        if (!string.Equals(email, user.UserName, StringComparison.Ordinal))
         {
-            // The phone number is the login: renaming checks it is not used by another account.
-            EnsureSucceeded(await _userManager.SetUserNameAsync(user, phone));
+            // The Gmail is the login (older staff accounts switch from their phone number to it here).
+            EnsureSucceeded(await _userManager.SetUserNameAsync(user, email));
         }
 
+        user.Email = email;
+        user.NormalizedEmail = _userManager.NormalizeEmail(email);
+        user.EmailConfirmed = true;
         user.FullName = model.FullName.Trim();
         user.PhoneNumber = phone;
         EnsureSucceeded(await _userManager.UpdateAsync(user));
@@ -150,10 +160,16 @@ public sealed class StaffAccountService : IStaffAccountService
         var user = await FindStaffAsync(staffId);
         if (_accountLockService.IsLocked(user))
         {
-            throw new InvalidOperationException("Tài khoản đang bị khóa. Hãy mở khóa trước khi cấp mật khẩu tạm.");
+            throw new InvalidOperationException("Tài khoản đang bị khóa. Hãy mở khóa trước khi đặt lại mật khẩu.");
         }
 
-        return await _accountPasswordService.ResetToTemporaryPasswordAsync(user);
+        var phone = RequireValidPhone(user.PhoneNumber ?? user.UserName);
+        user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, phone);
+        user.MustChangePassword = true;
+        user.AccessFailedCount = 0;
+        // Rotating the stamp also saves the user and signs the old sessions out within a minute.
+        EnsureSucceeded(await _userManager.UpdateSecurityStampAsync(user));
+        return phone;
     }
 
     public async Task LockAsync(string staffId, string reason, CancellationToken cancellationToken = default)
@@ -172,6 +188,48 @@ public sealed class StaffAccountService : IStaffAccountService
     {
         var phone = PhoneNumberFormatter.Normalize(input);
         return PhoneNumberFormatter.IsValid(phone) ? phone! : throw new InvalidOperationException(PhoneNumberFormatter.InvalidMessage);
+    }
+
+    private static string RequireGmail(string? input)
+    {
+        var email = (input ?? string.Empty).Trim().ToLowerInvariant();
+        return System.Text.RegularExpressions.Regex.IsMatch(email, StaffAccountRules.GmailPattern)
+            ? email
+            : throw new InvalidOperationException(StaffAccountRules.GmailMessage);
+    }
+
+    private async Task EnsureEmailAvailableAsync(string email, string? exceptUserId)
+    {
+        var owner = await _userManager.FindByNameAsync(email) ?? await _userManager.FindByEmailAsync(email);
+        if (owner is not null && owner.Id != exceptUserId)
+        {
+            throw new InvalidOperationException($"Gmail {email} đã thuộc một tài khoản khác (khách hàng hoặc nhân viên).");
+        }
+    }
+
+    /// <summary>
+    /// Staff can sign in to the management area with their phone number too, so it must not be another
+    /// account's phone login nor the phone of another staff member or admin.
+    /// </summary>
+    private async Task EnsurePhoneAvailableAsync(string phone, string? exceptUserId)
+    {
+        var message = $"Số điện thoại {phone} đã thuộc một tài khoản khác (khách hàng hoặc nhân viên).";
+        var phoneLogin = await _userManager.FindByNameAsync(phone);
+        if (phoneLogin is not null && phoneLogin.Id != exceptUserId)
+        {
+            throw new InvalidOperationException(message);
+        }
+
+        var samePhone = await _userManager.Users
+            .Where(user => user.PhoneNumber == phone && user.Id != exceptUserId)
+            .ToListAsync();
+        foreach (var other in samePhone)
+        {
+            if (await _userManager.IsInRoleAsync(other, StaffRole) || await _userManager.IsInRoleAsync(other, AdminRole))
+            {
+                throw new InvalidOperationException(message);
+            }
+        }
     }
 
     private static string LoginOf(User user) => user.PhoneNumber ?? user.UserName ?? string.Empty;
@@ -196,6 +254,7 @@ public sealed class StaffAccountService : IStaffAccountService
     {
         Id = user.Id,
         FullName = user.FullName ?? string.Empty,
+        Email = string.IsNullOrEmpty(user.Email) ? null : user.Email,
         PhoneNumber = LoginOf(user),
         MustChangePassword = user.MustChangePassword,
         IsLocked = _accountLockService.IsLocked(user),

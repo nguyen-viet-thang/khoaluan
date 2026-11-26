@@ -16,12 +16,12 @@ public enum InventoryTransactionType
     Sale = 2,
 
     /// <summary>
-    /// Adjustment increase
+    /// Legacy manual adjustment (increase). No longer created; kept so old rows still map.
     /// </summary>
     AdjustmentIncrease = 3,
 
     /// <summary>
-    /// Adjustment decrease
+    /// Legacy manual adjustment (decrease). No longer created; kept so old rows still map.
     /// </summary>
     AdjustmentDecrease = 4,
 
@@ -33,5 +33,10 @@ public enum InventoryTransactionType
     /// <summary>
     /// Returned item that is still sellable (e.g. wrong item delivered) put back into stock
     /// </summary>
-    ClaimRestock = 6
+    ClaimRestock = 6,
+
+    /// <summary>
+    /// Items of a cancelled order put back into stock
+    /// </summary>
+    OrderCancelRestock = 7
 }

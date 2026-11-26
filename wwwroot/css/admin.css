@@ -27,3 +27,31 @@
 .store-notify__toast span{font-size:13px;color:#cbd5e1}
 .store-notify__toast.is-leaving{opacity:0;transform:translateY(10px)}
 @media(max-width:650px){.admin-topbar-actions{gap:8px}}
+
+/* ---------- Order list grouped by status (priority order) ---------- */
+.admin-table tr.admin-table__group td{background:#f5f7fb;padding:9px 18px;border-top:1px solid var(--admin-line)}
+.admin-table__group-count{margin-left:10px;color:var(--admin-muted);font-size:12px}
+
+/* ---------- Staff permissions (admin staff pages + staff "Quyền hạn" page) ---------- */
+.staff-permissions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.staff-permissions__title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;margin:0 0 10px}
+.staff-permissions__title--allow{color:#21834a}
+.staff-permissions__title--deny{color:#b83939}
+.staff-permissions__list{margin:0;padding-left:18px;font-size:13px;line-height:1.55;color:#3c4a5e}
+.staff-permissions__list li+li{margin-top:6px}
+@media(max-width:900px){.staff-permissions{grid-template-columns:1fr}}
+
+/* ---------- Buttons & action rows: same height, icon + text centred, consistent spacing ---------- */
+.admin-content .btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;vertical-align:middle;white-space:nowrap;line-height:1.25}
+.admin-content .btn.w-100,.admin-content .btn.d-block{display:flex}
+.admin-content .btn>i,.admin-content .btn>.fa{margin:0!important;line-height:1;width:1em;text-align:center}
+.admin-content .btn-sm{min-height:31px}
+.admin-content .input-group>.btn{white-space:nowrap}
+.admin-page-heading{flex-wrap:wrap}
+.admin-page-heading>div:first-child{min-width:0}
+.admin-actions>form{margin:0;display:inline-flex}
+.admin-toolbar>.btn,.admin-toolbar .form-control,.admin-toolbar .form-select{min-height:38px}
+.admin-table td{vertical-align:middle}
+.admin-table td .admin-actions{flex-wrap:nowrap}
+.admin-panel-header{gap:12px;flex-wrap:wrap}
+@media(max-width:650px){.admin-content .btn{white-space:normal}.admin-page-heading{align-items:flex-start}}

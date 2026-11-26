@@ -6,6 +6,144 @@
     --store-line: #eeeeee;
 }
 
+/* ---------- Buttons: one box model for <a> and <button>, text always centred ---------- */
+/* The template sizes .primary-btn with line-height:50px and leaves the browser's default
+   border on <button>, so buttons and links next to each other end up with different heights
+   and a wrapped label doubles the button height. */
+.primary-btn,
+.banner-area .primary-btn,
+.order_box .primary-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 8px 26px;
+    line-height: 1.3;
+    font-family: inherit;
+    font-size: 14px;
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+    border: 0;
+    max-width: 100%;
+}
+
+.primary-btn.w-100,
+.primary-btn.btn-block,
+.order_box .primary-btn {
+    display: flex;
+    width: 100%;
+}
+
+.primary-btn:disabled,
+.primary-btn[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.primary-btn:disabled:hover:before {
+    opacity: 0;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.btn.btn-block,
+.btn.w-100 {
+    display: flex;
+}
+
+.primary-btn > .fa,
+.primary-btn > .lnr,
+.btn > .fa,
+.btn > .lnr {
+    margin: 0 !important;
+    line-height: 1;
+}
+
+/* Inline forms holding a single button must not add their own spacing. */
+form.d-inline,
+td > form {
+    margin: 0;
+}
+
+td .btn,
+td .primary-btn {
+    vertical-align: middle;
+}
+
+@media (max-width: 575px) {
+    .primary-btn,
+    .btn {
+        white-space: normal;
+    }
+}
+
+/* ---------- Catalog toolbar (result count + sort) ---------- */
+.filter-bar {
+    gap: 10px 12px;
+    padding: 10px 20px;
+}
+
+.filter-bar .sorting {
+    margin: 0;
+}
+
+.filter-bar .sorting.mr-auto {
+    color: #ffffff;
+}
+
+.filter-bar .sorting label {
+    color: #ffffff;
+    white-space: nowrap;
+}
+
+.filter-bar .nice-select,
+.filter-bar .form-control {
+    height: 40px;
+    line-height: 38px;
+}
+
+.filter-bar .primary-btn {
+    min-height: 40px;
+    margin-left: 0 !important;
+    padding: 6px 22px;
+}
+
+/* ---------- Catalog sidebar: one left edge for headings, fields and buttons ---------- */
+.sidebar-filter .common-filter > .head {
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+.sidebar-filter .common-filter > form.px-3 {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+}
+
+/* ---------- Catalog sidebar: price range read-out ---------- */
+.common-filter form .price-range-area {
+    padding: 20px 8px 0;
+}
+
+.price-range-area .value-wrapper {
+    flex-wrap: wrap;
+    gap: 2px 0;
+    color: var(--store-ink);
+    font-size: 13px;
+}
+
+.price-range-area .value-wrapper span {
+    white-space: nowrap;
+}
+
 /* ---------- Product card (home + catalog) ---------- */
 .store-product-card {
     display: flex;
@@ -71,7 +209,8 @@
     margin-bottom: 10px;
 }
 
-.store-hero__price {
+.store-hero__price,
+.banner-area .banner-content .store-hero__price {
     margin: 12px 0 24px;
     font-size: 18px;
     color: var(--store-ink);

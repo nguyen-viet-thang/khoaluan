@@ -1,0 +1,60 @@
+PAGE|QT03. Quy trình bảo hành và đổi hàng lỗi
+TITLE|SƠ ĐỒ HOẠT ĐỘNG: QUY TRÌNH BẢO HÀNH VÀ ĐỔI HÀNG LỖI (QT03)
+INFO|Chức năng đáp ứng|FR15, FR16, FR20 (CN29 – Tạo yêu cầu bảo hành / đổi hàng lỗi; CN30 – Xem danh sách và chi tiết yêu cầu bảo hành; CN31 – Bổ sung bằng chứng; CN32 – Khai báo thông tin gửi hàng; CN33 – Hủy yêu cầu bảo hành; CN34 – Xác nhận đã nhận sản phẩm; CN35 – Xem danh sách yêu cầu bảo hành; CN36 – Xem chi tiết yêu cầu và bằng chứng; CN37 – Xử lý yêu cầu bảo hành).
+INFO|Tác nhân|Khách hàng, Nhân viên.
+INFO|Mô tả|Cho phép khách hàng gửi yêu cầu đổi hàng lỗi khi nhận hoặc bảo hành cho sản phẩm đã mua kèm video minh chứng; nhân viên xem xét, yêu cầu bổ sung, duyệt hoặc từ chối, nhận sản phẩm khách gửi về, gửi hãng thẩm định khi cần và gửi sản phẩm thay thế cho khách. Cửa hàng không hoàn tiền: mỗi yêu cầu kết thúc bằng một sản phẩm thay thế hoặc bị từ chối.
+INFO|Tiền điều kiện|Khách hàng đã đăng nhập; đơn hàng ở trạng thái Đã giao thành công; sản phẩm còn trong thời hạn đổi hàng lỗi hoặc thời hạn bảo hành và chưa có yêu cầu khác đang xử lý.
+INFO|Hậu điều kiện|Khách hàng nhận được sản phẩm thay thế và yêu cầu ở trạng thái Hoàn tất (hoặc yêu cầu bị từ chối kèm lý do); lịch sử xử lý và tồn kho được cập nhật.
+LANE|Khách hàng
+LANE|Nhân viên
+LANE|Hệ thống
+N|start|start|0|0|
+N|n1|action|0|1|Chọn đơn hàng đã giao và sản phẩm cần bảo hành hoặc đổi
+N|n2|action|0|2|Chọn loại lỗi, nhập mô tả, tải video minh chứng
+N|n3|action|0|3|Chọn "Gửi yêu cầu"
+N|n4|action|2|4|Kiểm tra thời hạn, loại lỗi, số lượng và tệp minh chứng
+N|d1|decision|2|5|Yêu cầu hợp lệ?
+N|n5|action|2|6|Tạo yêu cầu ở trạng thái Chờ duyệt, thông báo cho nhân viên
+N|n6|action|1|7|Xem chi tiết yêu cầu và video minh chứng
+N|d2|decision|1|8|Cần bổ sung minh chứng?
+N|n7|action|0|9|Nhận thông báo, tải thêm video hoặc ảnh minh chứng
+N|d3|decision|1|9|Chấp nhận yêu cầu?
+N|n8|action|2|9|Chuyển Từ chối, lưu lý do, thông báo cho khách hàng
+N|end2|end|2|10|
+N|n9|action|1|10|Duyệt yêu cầu, hướng dẫn khách gửi sản phẩm về
+N|n10|action|0|11|Gửi sản phẩm về cửa hàng, khai báo đơn vị vận chuyển và mã vận đơn
+N|n11|action|1|12|Nhận và kiểm tra sản phẩm khách gửi về
+N|d4|decision|1|13|Cần gửi hãng thẩm định?
+N|n12|action|1|14|Gửi sản phẩm cho hãng thẩm định, nhận kết quả
+N|n13|action|1|15|Chọn cách giải quyết: cửa hàng đổi mới hoặc hãng thay thế
+N|n14|action|1|16|Gửi sản phẩm thay thế, nhập đơn vị vận chuyển và mã vận đơn
+N|n15|action|2|17|Trừ tồn kho nếu cửa hàng đổi mới, chuyển Đang gửi hàng cho khách, thông báo khách
+N|n16|action|0|18|Nhận sản phẩm, chọn "Đã nhận được hàng"
+N|n17|action|2|19|Chuyển Hoàn tất, thông báo cho nhân viên
+N|end|end|2|20|
+E|start|n1||f
+E|n1|n2||f
+E|n2|n3||f
+E|n3|n4||f
+E|n4|d1||f
+E|d1|n5|Có|f
+E|n5|n6||f
+E|n6|d2||f
+E|d2|n7|Có|f
+E|d2|d3|Không|f
+E|d3|n8|Không|f
+E|n8|end2||f
+E|d3|n9|Có|f
+E|n9|n10||f
+E|n10|n11||f
+E|n11|d4||f
+E|d4|n12|Có|f
+E|n12|n13||f
+E|n13|n14||f
+E|n14|n15||f
+E|n15|n16||f
+E|n16|n17||f
+E|n17|end||f
+E|d1|n2|Không|loop
+E|n7|n6||lloop
+E|d4|n13|Không|skip

@@ -146,9 +146,19 @@ public sealed class WarrantyClaimRepository : Repository<WarrantyClaim, int>, IW
                 || (claim.Order.RecipientPhone != null && claim.Order.RecipientPhone.Contains(term)));
         }
 
-        // Open claims first (oldest waiting first), then closed ones (newest first).
+        // Work queue order, by status in workflow order (same order as ClaimDisplay.OrderedStatuses):
+        // Chờ duyệt → Cần bổ sung → Đã duyệt → Đã nhận hàng → Gửi hãng → Đang gửi cho khách → Hoàn tất → Từ chối → Khách hủy.
+        // Within an open status the claim waiting longest (oldest update) comes first; closed ones newest first.
         return await query
-            .OrderBy(claim => ClosedStatuses.Contains(claim.Status))
+            .OrderBy(claim => claim.Status == ClaimStatus.Submitted ? 0
+                : claim.Status == ClaimStatus.NeedMoreInfo ? 1
+                : claim.Status == ClaimStatus.Approved ? 2
+                : claim.Status == ClaimStatus.Received ? 3
+                : claim.Status == ClaimStatus.SentToBrand ? 4
+                : claim.Status == ClaimStatus.ReturningToCustomer ? 5
+                : claim.Status == ClaimStatus.Completed ? 6
+                : claim.Status == ClaimStatus.Rejected ? 7
+                : 8)
             .ThenBy(claim => ClosedStatuses.Contains(claim.Status) ? DateTime.MaxValue : claim.UpdatedAt)
             .ThenByDescending(claim => claim.UpdatedAt)
             .ToListAsync(cancellationToken);
