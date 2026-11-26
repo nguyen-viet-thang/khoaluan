@@ -95,6 +95,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.Configure<PopPop.Models.ShippingOptions>(builder.Configuration.GetSection(PopPop.Models.ShippingOptions.SectionName));
 // ---Public shop contact info for the footer (optional)---
 builder.Services.Configure<PopPop.Models.StoreOptions>(builder.Configuration.GetSection(PopPop.Models.StoreOptions.SectionName));
+builder.Services.Configure<PopPop.Models.VnPayOptions>(builder.Configuration.GetSection(PopPop.Models.VnPayOptions.SectionName));
 
 // Register repositories and unit of work
 builder.Services.AddScoped(typeof(IRepository<,>), typeof(Repository<,>));
@@ -126,6 +127,7 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IHeaderBadgeService, HeaderBadgeService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IVnPayPaymentService, VnPayPaymentService>();
 builder.Services.AddScoped<IProductManagementService, ProductManagementService>();
 builder.Services.AddSingleton<IProductImageStorage, ProductImageStorage>();
 builder.Services.AddScoped<ICatalogGroupService<Category>, CategoryManagementService>();

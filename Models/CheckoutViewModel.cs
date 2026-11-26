@@ -31,6 +31,10 @@ public sealed class CheckoutViewModel
     [Display(Name = "Ghi chú")]
     public string? Note { get; set; }
 
+    [EnumDataType(typeof(PaymentMethod), ErrorMessage = "Phương thức thanh toán không hợp lệ.")]
+    [Display(Name = "Phương thức thanh toán")]
+    public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.CashOnDelivery;
+
     public IReadOnlyList<CartLineViewModel> Items { get; set; } = [];
     public decimal Subtotal => Items.Sum(item => item.LineTotal);
     public decimal ShippingFee { get; set; }

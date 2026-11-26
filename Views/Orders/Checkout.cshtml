@@ -91,11 +91,22 @@
                                     <p class="text-muted small mb-2">Mua thêm <strong>@Model.AmountToFreeShipping.ToString("N0") ₫</strong> để được miễn phí giao hàng (đơn từ @Model.FreeShippingThreshold.ToString("N0") ₫).</p>
                                 }
 
-                                <div class="payment_item active">
-                                    <strong>Thanh toán khi nhận hàng (COD)</strong>
+                                <div class="payment_item">
+                                    <label class="d-block">
+                                        <input asp-for="PaymentMethod" type="radio" value="@((int)PaymentMethod.CashOnDelivery)" />
+                                        <strong>Thanh toán khi nhận hàng (COD)</strong>
+                                    </label>
                                     <p>Bạn thanh toán bằng tiền mặt cho nhân viên giao hàng khi nhận và kiểm tra đủ sản phẩm.</p>
                                 </div>
-                                <button type="submit" class="primary-btn mt-3 w-100">Đặt hàng</button>
+                                <div class="payment_item">
+                                    <label class="d-block">
+                                        <input asp-for="PaymentMethod" type="radio" value="@((int)PaymentMethod.VnPay)" />
+                                        <strong>Thanh toán trực tuyến qua VNPAY</strong>
+                                    </label>
+                                    <p>Chuyển đến cổng VNPAY an toàn để thanh toán bằng thẻ hoặc ngân hàng.</p>
+                                </div>
+                                <span asp-validation-for="PaymentMethod" class="text-danger"></span>
+                                <button type="submit" class="primary-btn mt-3 w-100">Đặt hàng / Thanh toán</button>
                             }
                             <a asp-controller="Cart" asp-action="Index" class="d-block mt-3">Quay lại giỏ hàng</a>
                         </div>

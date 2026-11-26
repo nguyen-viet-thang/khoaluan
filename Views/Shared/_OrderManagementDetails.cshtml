@@ -18,7 +18,7 @@
         OrderStatus.Confirmed => "Xác nhận đơn",
         OrderStatus.Processing => "Chuẩn bị hàng (đang xử lý)",
         OrderStatus.Shipping => "Giao cho đơn vị vận chuyển",
-        OrderStatus.Completed => "Đã giao thành công (đã thu tiền COD)",
+        OrderStatus.Completed => "Đã giao thành công",
         OrderStatus.Cancelled => "Hủy đơn và hoàn kho",
         _ => status.ToString()
     };
@@ -31,7 +31,7 @@
     <section class="admin-detail-card">
         <h3>Thông tin đơn hàng</h3>
         <div class="admin-detail-row"><span>Trạng thái</span><span class="admin-status @StatusClass(Model.Status)">@Model.StatusText</span></div>
-        <div class="admin-detail-row"><span>Thanh toán</span><strong>COD — @(Model.PaymentStatus == PaymentStatus.Paid ? "Đã thanh toán" : "Chưa thanh toán")</strong></div>
+        <div class="admin-detail-row"><span>Thanh toán</span><strong>@(Model.PaymentMethod == PaymentMethod.VnPay ? "VNPAY" : "COD") — @(Model.PaymentStatus == PaymentStatus.Paid ? "Đã thanh toán" : "Chưa thanh toán")</strong></div>
         @if (Model.PaidAt.HasValue)
         {
             <div class="admin-detail-row"><span>Thanh toán lúc</span><span>@Model.PaidAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></div>
@@ -61,7 +61,7 @@
             </tbody>
             <tfoot>
                 <tr><td colspan="4" class="text-end">Phí giao hàng</td><td>@(Model.ShippingFee == 0 ? "Miễn phí" : $"{Model.ShippingFee:N0} ₫")</td></tr>
-                <tr><th colspan="4" class="text-end">Tổng cộng (thu khi giao)</th><th>@Model.TotalAmount.ToString("N0") ₫</th></tr>
+                <tr><th colspan="4" class="text-end">@(Model.PaymentMethod == PaymentMethod.VnPay ? "Tổng cộng" : "Tổng cộng (thu khi giao)")</th><th>@Model.TotalAmount.ToString("N0") ₫</th></tr>
             </tfoot>
         </table>
     </div>

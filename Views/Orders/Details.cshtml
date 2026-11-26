@@ -44,8 +44,14 @@
                 <p><strong>Trạng thái:</strong> @statusText</p>
                 <p><strong>Ngày đặt:</strong> @Model.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
                 <p><strong>Cập nhật gần nhất:</strong> @Model.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
-                <p><strong>Phương thức thanh toán:</strong> Thanh toán khi nhận hàng (COD)</p>
+                <p><strong>Phương thức thanh toán:</strong> @(Model.PaymentMethod == PaymentMethod.VnPay ? "VNPAY" : "Thanh toán khi nhận hàng (COD)")</p>
                 <p><strong>Trạng thái thanh toán:</strong> @(Model.PaymentStatus == PaymentStatus.Paid ? "Đã thanh toán" : "Chưa thanh toán")</p>
+                @if (Model.PaymentMethod == PaymentMethod.VnPay
+                    && Model.PaymentStatus != PaymentStatus.Paid
+                    && Model.Status != OrderStatus.Cancelled)
+                {
+                    <a asp-controller="Orders" asp-action="Pay" asp-route-id="@Model.Id" class="btn btn-primary">Thử thanh toán VNPAY</a>
+                }
                 @if (Model.PaidAt.HasValue)
                 {
                     <p><strong>Thanh toán lúc:</strong> @Model.PaidAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
