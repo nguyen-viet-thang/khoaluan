@@ -22,94 +22,73 @@
 ### Yêu cầu
 
 - **.NET 10 SDK** - [Tải xuống](https://dotnet.microsoft.com/download/dotnet/10.0)
-- **SQL Server** - [Tải xuống](https://www.microsoft.com/en-us/sql-server/sql-server-downloads) (hoặc `database` khác nhưng phải tự cấu hình)
+- **SQL Server LocalDB** - có sẵn khi cài Visual Studio 2022+ (workload *ASP.NET and web development*), hoặc dùng [SQL Server Express](https://www.microsoft.com/en-us/sql-server/sql-server-downloads)
+- **Git** - [Tải xuống](https://git-scm.com/download/win)
 
-### Các bước cài đặt
+### Các bước cài đặt (PowerShell trên Windows)
 
-#### 1. Clone repository
+#### 1. Clone repository (nhánh `thang`)
 
-```bash
-git clone https://github.com/PLinh2003/PopPop.git
-cd PopPop
+```powershell
+git clone -b thang https://github.com/nguyen-viet-thang/khoaluan.git
+cd khoaluan
 ```
 
-#### 2. Cấu hình cơ sở dữ liệu
+#### 2. Tạo file `appsettings.json`
 
-Tạo file `appsettings.json` và cập nhật `"DefaultConnection"` SQL Server theo môi trường của bạn:
+File này không có trong repo (để tránh lộ mật khẩu), mỗi máy tự tạo. Chạy nguyên khối lệnh sau trong thư mục dự án:
 
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=[YOUR_SERVER_NAME];Database=[YOUR_DATABASE_NAME];User Id=[YOUR_USER_ID];Password=[YOUR_PASSWORD];TrustServerCertificate=True;"
-  },
-  "Shipping": {
-    "Fee": 30000,
-    "FreeShippingThreshold": 500000
-  },
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
-  },
-  "AllowedHosts": "*"
-}
-```
-Có thể tạo luôn file `appsettings.json` bằng lệnh trong `terminal`
-```pwshell
+```powershell
 @'
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=[YOUR_SERVER_NAME];Database=[YOUR_DATABASE_NAME];User Id=[YOUR_USER_ID];Password=[YOUR_PASSWORD];TrustServerCertificate=True;"
+    "DefaultConnection": "Server=(localdb)\\MSSQLLocalDB;Database=PopPopShop;Trusted_Connection=True;TrustServerCertificate=True;"
   },
-  "Shipping": {
-    "Fee": 30000,
-    "FreeShippingThreshold": 500000
-  },
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
-  },
+  "Smtp": { "Host": "", "Port": 587, "EnableSsl": true, "UserName": "", "FromAddress": "", "FromName": "PopPop" },
+  "Shipping": { "Fee": 30000, "FreeShippingThreshold": 500000 },
+  "Logging": { "LogLevel": { "Default": "Information", "Microsoft.AspNetCore": "Warning" } },
   "AllowedHosts": "*"
 }
 '@ | Set-Content -Path "appsettings.json" -Encoding utf8
 ```
 
-> Mục `Shipping` (không bắt buộc): phí giao hàng (VNĐ) và mức đơn tối thiểu để được miễn phí giao hàng. Nếu bỏ trống, hệ thống dùng mặc định 30.000 ₫ và miễn phí cho đơn từ 500.000 ₫. Hệ thống chỉ hỗ trợ thanh toán khi nhận hàng (COD).
+- Dùng SQL Server Express thì đổi `(localdb)\\MSSQLLocalDB` thành `.\\SQLEXPRESS`.
+- `Smtp.Host` để trống: không gửi email thật, link xác nhận/đặt lại mật khẩu hiện ngay trên trang (môi trường Development).
+- `Shipping` (không bắt buộc): phí giao hàng và mức miễn phí giao hàng. Hệ thống chỉ hỗ trợ thanh toán khi nhận hàng (COD).
 
-#### 3. Cài đặt NuGet packages
+#### 3. Tạo cơ sở dữ liệu (kèm dữ liệu mẫu)
 
-Khôi phục tất cả các gói phụ thuộc:
-
-```pwshell
-dotnet restore
-```
-
-Hoặc sử dụng Package Manager trong Visual Studio:
-```
-Package Manager Console > Update-Package
-```
-
-#### 4. Áp dụng Migration để tạo cơ sở dữ liệu
-
-```bash
+```powershell
+dotnet tool install --global dotnet-ef
 dotnet ef database update
 ```
 
-Hoặc sử dụng Package Manager Console:
-```
-Package Manager Console > Update-Database
-```
+Hoặc trong Visual Studio: `Package Manager Console > Update-Database`.
 
-#### 5. Chạy ứng dụng
+#### 4. Chạy ứng dụng
 
-```bash
+```powershell
 dotnet run
 ```
 
-Hoặc nhấn **F5** trong Visual Studio.
+Mở trình duyệt tại http://localhost:5263. Hoặc mở `PopPop.slnx` trong Visual Studio và nhấn **F5**.
+
+#### 5. Tài khoản mẫu
+
+| Vai trò | Trang đăng nhập | Tài khoản | Mật khẩu |
+|---|---|---|---|
+| Admin | `/admin/login` | 0900000000 | Admin@123 |
+| Nhân viên | `/admin/login` | 0911222301 | PopPop@123 |
+| Khách hàng | `/Identity/Account/Login` | 0901234501 | PopPop@123 |
+
+> Chỉ dùng cho môi trường chạy thử trên máy cá nhân.
+
+#### Cập nhật code mới
+
+```powershell
+git pull
+dotnet ef database update
+```
 
 ## 📁 Cấu trúc dự án
 
