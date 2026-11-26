@@ -41,14 +41,20 @@ public sealed class OrderService : IOrderService
 
     public decimal CalculateShippingFee(decimal subtotal) => _shipping.CalculateFee(subtotal);
 
-    public async Task<int> PlaceOrderAsync(
+    public async Task<(int OrderId, decimal TotalAmount)> PlaceOrderAsync(
         string userId,
         CheckoutViewModel checkout,
+        PaymentMethod paymentMethod,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(userId))
         {
             throw new InvalidOperationException("Bạn cần đăng nhập để đặt hàng.");
+        }
+
+        if (paymentMethod is not (PaymentMethod.CashOnDelivery or PaymentMethod.VnPay))
+        {
+            throw new InvalidOperationException("Phương thức thanh toán không hợp lệ.");
         }
 
         var order = await _unitOfWork.ExecuteInTransactionAsync(async token =>
@@ -80,7 +86,7 @@ public sealed class OrderService : IOrderService
                 UserId = userId,
                 OrderCode = orderCode,
                 Status = OrderStatus.Pending,
-                PaymentMethod = PaymentMethod.CashOnDelivery,
+                PaymentMethod = paymentMethod,
                 PaymentStatus = PaymentStatus.Unpaid,
                 RecipientName = checkout.RecipientName.Trim(),
                 RecipientPhone = PhoneNumberFormatter.Normalize(checkout.RecipientPhone),
@@ -128,10 +134,46 @@ public sealed class OrderService : IOrderService
         // After commit: tell the back office there is a new order to confirm.
         await _notificationService.NotifyStaffAsync(
             $"Đơn hàng mới {order.OrderCode}",
-            $"{order.RecipientName} · {order.OrderItems.Sum(item => item.Quantity)} sản phẩm · {order.TotalAmount:N0} ₫ (COD). Đang chờ xác nhận.",
+            $"{order.RecipientName} · {order.OrderItems.Sum(item => item.Quantity)} sản phẩm · {order.TotalAmount:N0} ₫ ({(order.PaymentMethod == PaymentMethod.VnPay ? "VNPAY" : "COD")}). Đang chờ xác nhận.",
             $"/Staff/Orders/Details/{order.Id}",
             cancellationToken);
-        return order.Id;
+        return (order.Id, order.TotalAmount);
+    }
+
+    public Task<string> ProcessVnPayNotificationAsync(
+        int orderId,
+        long amount,
+        bool paymentSucceeded,
+        CancellationToken cancellationToken = default)
+    {
+        return _unitOfWork.ExecuteInTransactionAsync(async token =>
+        {
+            var order = await _orderRepository.GetByIdAsync(orderId, token);
+            if (order is null || order.PaymentMethod != PaymentMethod.VnPay)
+            {
+                return "01";
+            }
+
+            if (amount != checked((long)(order.TotalAmount * 100m)))
+            {
+                return "04";
+            }
+
+            if (order.PaymentStatus == PaymentStatus.Paid || order.Status == OrderStatus.Cancelled)
+            {
+                return "02";
+            }
+
+            if (paymentSucceeded)
+            {
+                var now = DateTime.UtcNow;
+                order.PaymentStatus = PaymentStatus.Paid;
+                order.PaidAt = now;
+                order.UpdatedAt = now;
+            }
+
+            return "00";
+        }, cancellationToken);
     }
 
     public async Task<OrderDetailsViewModel?> GetDetailsForUserAsync(
@@ -363,6 +405,13 @@ public sealed class OrderService : IOrderService
             if (!GetAvailableStatuses(order.Status).Contains(nextStatus))
             {
                 throw new InvalidOperationException("Không thể chuyển đơn hàng sang trạng thái đã chọn.");
+            }
+
+            if (order.PaymentMethod == PaymentMethod.VnPay
+                && order.PaymentStatus != PaymentStatus.Paid
+                && nextStatus != OrderStatus.Cancelled)
+            {
+                throw new InvalidOperationException("Đơn hàng VNPAY cần được thanh toán trước khi cửa hàng xử lý.");
             }
 
             var now = DateTime.UtcNow;

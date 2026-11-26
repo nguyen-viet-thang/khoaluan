@@ -4,7 +4,7 @@ using PopPop.Models;
 namespace PopPop.Services.Interfaces;
 
 /// <summary>
-/// Order flow. Payment is cash on delivery (COD) only.
+/// Order flow for cash on delivery and VNPAY checkout.
 /// Business-rule violations throw <see cref="InvalidOperationException"/> with a user-facing message;
 /// missing orders throw <see cref="KeyNotFoundException"/>.
 /// </summary>
@@ -13,8 +13,17 @@ public interface IOrderService
     ShippingOptions ShippingPolicy { get; }
     decimal CalculateShippingFee(decimal subtotal);
 
-    /// <summary>Creates a COD order from the customer's cart and returns its id.</summary>
-    Task<int> PlaceOrderAsync(string userId, CheckoutViewModel checkout, CancellationToken cancellationToken = default);
+    /// <summary>Creates an order from the customer's cart and returns its id and server-calculated total.</summary>
+    Task<(int OrderId, decimal TotalAmount)> PlaceOrderAsync(
+        string userId,
+        CheckoutViewModel checkout,
+        PaymentMethod paymentMethod,
+        CancellationToken cancellationToken = default);
+    Task<string> ProcessVnPayNotificationAsync(
+        int orderId,
+        long amount,
+        bool paymentSucceeded,
+        CancellationToken cancellationToken = default);
     Task<CustomerOrdersViewModel> GetOrdersForUserAsync(string userId, CancellationToken cancellationToken = default);
     Task<OrderDetailsViewModel?> GetDetailsForUserAsync(int orderId, string userId, CancellationToken cancellationToken = default);
     /// <summary>Fills recipient fields from the customer's most recent order, if any. Returns false when there is none.</summary>
