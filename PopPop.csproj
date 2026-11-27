@@ -9,9 +9,17 @@
 
   <ItemGroup>
     <Compile Remove="Doc\**" />
+    <Compile Remove="ExternalServices\**" />
+    <Compile Remove="template-html\**" />
     <Content Remove="Doc\**" />
+    <Content Remove="ExternalServices\**" />
+    <Content Remove="template-html\**" />
     <EmbeddedResource Remove="Doc\**" />
+    <EmbeddedResource Remove="ExternalServices\**" />
+    <EmbeddedResource Remove="template-html\**" />
     <None Remove="Doc\**" />
+    <None Remove="ExternalServices\**" />
+    <None Remove="template-html\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -81,11 +89,6 @@
     </PackageReference>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.3.1" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="ExternalServices\Pay\" />
-    <Folder Include="template-html\" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,0 +1,115 @@
+@model PopPop.Models.AdvisorResult?
+@using PopPop.Models
+
+@if (Model is null)
+{
+    <div class="advisor-empty">
+        <i class="fa fa-commenting-o" aria-hidden="true"></i>
+        <h3>Gợi ý sẽ hiện ở đây</h3>
+        <p>Chọn đủ 4 câu trả lời bên cạnh. Kết quả cập nhật ngay khi bạn đổi lựa chọn, không cần tải lại trang.</p>
+    </div>
+    return;
+}
+
+<div class="advisor-ideal">
+    <span class="advisor-ideal__label">Cây vợt lý tưởng cho bạn</span>
+    <div class="advisor-ideal__specs">
+        @foreach (var spec in Model.IdealSpecs)
+        {
+            <span>@spec</span>
+        }
+    </div>
+</div>
+
+@if (Model.BudgetRelaxed)
+{
+    <div class="alert alert-warning">Chưa có vợt còn hàng trong ngân sách này. Dưới đây là các cây gần đúng nhất, đã ghi rõ phần vượt ngân sách.</div>
+}
+
+@if (Model.Matches.Count == 0)
+{
+    <div class="advisor-empty">
+        <i class="fa fa-inbox" aria-hidden="true"></i>
+        <h3>Hiện chưa có vợt còn hàng</h3>
+        <p>Vui lòng quay lại sau hoặc <a asp-controller="Products" asp-action="Index">xem toàn bộ sản phẩm</a>.</p>
+    </div>
+}
+
+<ol class="advisor-matches">
+    @for (var index = 0; index < Model.Matches.Count; index++)
+    {
+        var match = Model.Matches[index];
+        <li class="advisor-match @(index == 0 ? "is-best" : string.Empty)">
+            @if (index == 0)
+            {
+                <span class="advisor-match__ribbon"><i class="fa fa-star" aria-hidden="true"></i> Hợp nhất với bạn</span>
+            }
+            <a class="advisor-match__image" asp-controller="Products" asp-action="Details" asp-route-id="@match.ProductId">
+                @if (!string.IsNullOrEmpty(match.ImageUrl))
+                {
+                    <img src="@Url.Content(match.ImageUrl)" alt="@match.Name" loading="lazy" />
+                }
+            </a>
+            <div class="advisor-match__body">
+                <div class="advisor-match__head">
+                    <div>
+                        <small>@match.BrandName</small>
+                        <h3><a asp-controller="Products" asp-action="Details" asp-route-id="@match.ProductId">@match.Name</a></h3>
+                        <div class="advisor-match__tags">
+                            @if (match.Balance is not null) { <span>@match.Balance</span> }
+                            @if (match.Stiffness is not null) { <span>Thân @match.Stiffness.ToLowerInvariant()</span> }
+                            @if (match.VariantLabel is not null) { <span>Nên chọn: @match.VariantLabel</span> }
+                        </div>
+                    </div>
+                    <div class="advisor-score" style="--score:@match.MatchPercent" role="img" aria-label="Phù hợp @match.MatchPercent%">
+                        <strong>@match.MatchPercent%</strong><small>phù hợp</small>
+                    </div>
+                </div>
+                <ul class="advisor-reasons">
+                    @foreach (var reason in match.Reasons)
+                    {
+                        <li class="is-@reason.Tone.ToString().ToLowerInvariant()">
+                            <i class="fa @(reason.Tone switch { FitTone.Good => "fa-check-circle", FitTone.Warning => "fa-exclamation-circle", _ => "fa-dot-circle-o" })" aria-hidden="true"></i>
+                            @reason.Text
+                        </li>
+                    }
+                </ul>
+                <div class="advisor-match__foot">
+                    <span class="advisor-match__price @(match.OverBudget ? "is-over" : string.Empty)">@match.Price.ToString("N0") ₫</span>
+                    @if (match.VariantId is { } variantId)
+                    {
+                        <form asp-controller="Cart" asp-action="Add" method="post">
+                            <input type="hidden" name="productVariantId" value="@variantId" />
+                            <button type="submit" class="primary-btn"><i class="fa fa-shopping-bag" aria-hidden="true"></i> Thêm bản @match.VariantLabel</button>
+                        </form>
+                    }
+                    <a class="advisor-match__link" asp-controller="Products" asp-action="Details" asp-route-id="@match.ProductId">Xem chi tiết</a>
+                </div>
+            </div>
+        </li>
+    }
+</ol>
+
+@if (Model.String is { } suggestion && Model.Matches.Count > 0)
+{
+    <div class="advisor-addon">
+        @if (!string.IsNullOrEmpty(suggestion.ImageUrl))
+        {
+            <img src="@Url.Content(suggestion.ImageUrl)" alt="@suggestion.Name" loading="lazy" />
+        }
+        <div class="advisor-addon__body">
+            <small>Gợi ý đan kèm · @suggestion.Gauge</small>
+            <strong><a asp-controller="Products" asp-action="Details" asp-route-id="@suggestion.ProductId">@suggestion.Name</a></strong>
+            <span>@suggestion.Why</span>
+        </div>
+        <form asp-controller="Cart" asp-action="Add" method="post">
+            <input type="hidden" name="productVariantId" value="@suggestion.VariantId" />
+            <button type="submit" class="btn btn-outline-primary">+ @suggestion.Price.ToString("N0") ₫</button>
+        </form>
+    </div>
+}
+
+<p class="advisor-note">
+    Điểm phù hợp = điểm cân bằng theo lối chơi (35%) + độ cứng thân theo trình độ và lực cổ tay (30%) + trọng lượng (15%) + giá so với ngân sách (20%).
+    Hồ sơ của bạn được nhớ trên trình duyệt để mỗi trang vợt hiển thị mức độ phù hợp.
+</p>

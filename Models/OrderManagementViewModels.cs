@@ -1,4 +1,4 @@
-using PopPop.Data.Entities.Enums;
+﻿using PopPop.Data.Entities.Enums;
 
 namespace PopPop.Models;
 
@@ -15,6 +15,12 @@ public sealed class OrderManagementRowViewModel
     public PaymentStatus PaymentStatus { get; init; }
     public DateTime? PaidAt { get; init; }
     public decimal TotalAmount { get; init; }
+
+    /// <summary>The forward step staff can take with one click (null when the order is finished).</summary>
+    public OrderStatus? NextStatus { get; init; }
+
+    /// <summary>VNPAY order the customer has not paid yet: the shop must wait before processing it.</summary>
+    public bool AwaitingOnlinePayment { get; init; }
 }
 
 public sealed class AdminDashboardViewModel
@@ -39,6 +45,18 @@ public sealed class OrderManagementListViewModel
     public OrderStatus? Status { get; set; }
     public string? Search { get; set; }
     public IReadOnlyList<OrderManagementRowViewModel> Orders { get; set; } = [];
+
+    /// <summary>Orders per status for the status tabs (respects the search, ignores the status filter).</summary>
+    public IReadOnlyDictionary<OrderStatus, int> StatusCounts { get; set; } = new Dictionary<OrderStatus, int>();
+    public int TotalCount => StatusCounts.Values.Sum();
+    public int OpenCount => StatusCounts.Where(pair => pair.Key is not (OrderStatus.Completed or OrderStatus.Cancelled)).Sum(pair => pair.Value);
+}
+
+/// <summary>Outcome of moving several orders one step forward at once.</summary>
+public sealed class BulkOrderUpdateResult
+{
+    public List<string> Updated { get; } = [];
+    public List<string> Failed { get; } = [];
 }
 
 public sealed class OrderManagementDetailsViewModel
@@ -62,4 +80,8 @@ public sealed class OrderManagementDetailsViewModel
     public decimal TotalAmount { get; init; }
     public IReadOnlyList<OrderLineViewModel> Items { get; init; } = [];
     public IReadOnlyList<OrderStatus> AvailableStatuses { get; init; } = [];
+
+    /// <summary>VNPAY order still unpaid: deadline (UTC) after which it is cancelled automatically.</summary>
+    public DateTime? PaymentDeadline { get; init; }
+    public bool AwaitingOnlinePayment => PaymentDeadline.HasValue;
 }

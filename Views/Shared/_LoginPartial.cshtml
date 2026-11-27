@@ -6,34 +6,55 @@
 @if (SignInManager.IsSignedIn(User))
 {
     var currentUser = await UserManager.GetUserAsync(User);
-    <li class="nav-item dropdown store-header__account">
-        <button class="store-header__icon store-header__avatar dropdown-toggle" type="button" data-toggle="dropdown"
-                aria-haspopup="true" aria-expanded="false" aria-label="Menu tài khoản">
+    var isAdmin = User.IsInRole("Admin");
+    var isStaff = User.IsInRole("Staff");
+    var displayName = currentUser?.FullName ?? currentUser?.UserName ?? "Tài khoản";
+    <li class="dropdown store-header__account">
+        <button class="store-header__icon store-header__avatar" type="button" data-toggle="dropdown"
+                aria-haspopup="true" aria-expanded="false" aria-label="Menu tài khoản" title="@displayName">
             @if (!string.IsNullOrWhiteSpace(currentUser?.AvatarPath))
             {
-                <img src="@Url.Content(currentUser.AvatarPath)" alt="Ảnh đại diện">
+                <img src="@Url.Content(currentUser.AvatarPath)" alt="">
             }
             else
             {
-                <i class="fa fa-user-circle" aria-hidden="true"></i>
+                <i class="fa fa-user-circle-o" aria-hidden="true"></i>
             }
         </button>
         <div class="dropdown-menu dropdown-menu-right store-header__account-menu">
-            <div class="store-header__account-name">@(currentUser?.FullName ?? currentUser?.UserName ?? "Tài khoản")</div>
+            <div class="store-header__account-name">
+                <strong>@displayName</strong>
+                <small>@(isAdmin ? "Quản trị viên" : isStaff ? "Nhân viên cửa hàng" : "Khách hàng")</small>
+            </div>
+            @if (isAdmin)
+            {
+                <a class="dropdown-item store-header__account-highlight" asp-area="Admin" asp-controller="Dashboard" asp-action="Index">
+                    <i class="fa fa-tachometer" aria-hidden="true"></i> Trang quản trị
+                </a>
+            }
+            @if (isAdmin || isStaff)
+            {
+                <a class="dropdown-item @(isAdmin ? string.Empty : "store-header__account-highlight")" asp-area="Staff" asp-controller="Orders" asp-action="Index">
+                    <i class="fa fa-tasks" aria-hidden="true"></i> Xử lý đơn hàng
+                </a>
+            }
+            else
+            {
+                <a class="dropdown-item" asp-area="" asp-controller="Orders" asp-action="Index">
+                    <i class="fa fa-list-alt" aria-hidden="true"></i> Đơn hàng của tôi
+                </a>
+                <a class="dropdown-item" asp-area="" asp-controller="Claims" asp-action="Index">
+                    <i class="fa fa-wrench" aria-hidden="true"></i> Bảo hành &amp; đổi hàng
+                </a>
+                <a class="dropdown-item" asp-area="" asp-controller="Notifications" asp-action="Index">
+                    <i class="fa fa-bell-o" aria-hidden="true"></i> Thông báo
+                </a>
+            }
             <a class="dropdown-item" asp-area="Identity" asp-page="/Account/Manage/Index">
-                <i class="fa fa-user-o" aria-hidden="true"></i> Quản lý thông tin
-            </a>
-            <a class="dropdown-item" asp-controller="Orders" asp-action="Index">
-                <i class="fa fa-list-alt" aria-hidden="true"></i> Quản lý đơn hàng
-            </a>
-            <a class="dropdown-item" asp-area="" asp-controller="Claims" asp-action="Index">
-                <i class="fa fa-wrench" aria-hidden="true"></i> Bảo hành &amp; đổi hàng
-            </a>
-            <a class="dropdown-item" asp-area="" asp-controller="Claims" asp-action="Start">
-                <i class="fa fa-plus-circle" aria-hidden="true"></i> Tạo yêu cầu bảo hành
+                <i class="fa fa-user-o" aria-hidden="true"></i> Thông tin tài khoản
             </a>
             <div class="dropdown-divider"></div>
-            <form asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">
+            <form asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })" method="post">
                 <button type="submit" class="dropdown-item">
                     <i class="fa fa-sign-out" aria-hidden="true"></i> Đăng xuất
                 </button>
@@ -43,14 +64,9 @@
 }
 else
 {
-    <li class="nav-item dropdown store-header__account">
-        <button class="store-header__icon store-header__avatar dropdown-toggle" type="button" data-toggle="dropdown"
-                aria-haspopup="true" aria-expanded="false" aria-label="Tài khoản">
-            <i class="fa fa-user-circle" aria-hidden="true"></i>
-        </button>
-        <div class="dropdown-menu dropdown-menu-right store-header__account-menu">
-            <a class="dropdown-item" asp-area="Identity" asp-page="/Account/Login">Đăng nhập</a>
-            <a class="dropdown-item" asp-area="Identity" asp-page="/Account/Register">Tạo tài khoản</a>
-        </div>
+    <li class="store-header__guest">
+        <a class="store-header__login" asp-area="Identity" asp-page="/Account/Login" asp-route-returnUrl="@($"{Context.Request.Path}{Context.Request.QueryString}")">
+            <i class="fa fa-user-circle-o" aria-hidden="true"></i><span>Đăng nhập</span>
+        </a>
     </li>
 }

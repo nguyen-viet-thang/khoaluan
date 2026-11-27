@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -69,6 +69,11 @@ public class OrdersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Checkout(CheckoutViewModel model, CancellationToken cancellationToken)
     {
+        if (model.PaymentMethod == PaymentMethod.VnPay && !_vnPayPaymentService.IsConfigured)
+        {
+            ModelState.AddModelError(nameof(model.PaymentMethod), "Cổng VNPAY tạm thời không khả dụng, vui lòng chọn thanh toán khi nhận hàng.");
+        }
+
         if (ModelState.IsValid)
         {
             try
@@ -101,82 +106,107 @@ public class OrdersController : Controller
             return NotFound();
         }
 
-        if (order.PaymentMethod != PaymentMethod.VnPay || order.Status == OrderStatus.Cancelled)
-        {
-            return BadRequest("Đơn hàng không thể thanh toán qua VNPAY.");
-        }
-
         if (order.PaymentStatus == PaymentStatus.Paid)
         {
+            TempData["OrderSuccess"] = "Đơn hàng đã được thanh toán.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        if (order.PaymentDeadline is not { } deadline || deadline <= DateTime.UtcNow)
+        {
+            TempData["OrderError"] = order.Status == OrderStatus.Cancelled
+                ? "Đơn hàng đã bị hủy nên không thể thanh toán."
+                : "Đơn hàng không còn chờ thanh toán VNPAY.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        if (!_vnPayPaymentService.IsConfigured)
+        {
+            TempData["OrderError"] = "Cổng VNPAY tạm thời không khả dụng. Bạn có thể chuyển sang thanh toán khi nhận hàng.";
             return RedirectToAction(nameof(Details), new { id });
         }
 
         var returnUrl = Url.Action(nameof(VnPayReturn), "Orders", values: null, protocol: Request.Scheme)
             ?? throw new InvalidOperationException("Không thể tạo địa chỉ nhận kết quả VNPAY.");
-        var ipAddress = HttpContext.Connection.RemoteIpAddress?.MapToIPv4().ToString() ?? "127.0.0.1";
         var paymentUrl = _vnPayPaymentService.CreatePaymentUrl(
-            id.ToString(CultureInfo.InvariantCulture), order.TotalAmount, ipAddress, returnUrl);
+            id, order.OrderCode, order.TotalAmount, GetClientIpAddress(), returnUrl, deadline);
         return Redirect(paymentUrl);
     }
 
+    /// <summary>
+    /// The customer's browser comes back from VNPAY. The signed result is applied right away (the same idempotent
+    /// handler as the IPN), so the order shows "paid" immediately even when VNPAY cannot reach the IPN URL (e.g. localhost).
+    /// </summary>
     [AllowAnonymous]
     [HttpGet]
-    public IActionResult VnPayReturn()
+    public async Task<IActionResult> VnPayReturn(CancellationToken cancellationToken)
     {
-        if (!_vnPayPaymentService.ValidateSignature(Request.Query)
-            || !Request.Query.TryGetValue("vnp_TxnRef", out var reference)
-            || reference.Count != 1
-            || !int.TryParse(reference[0], NumberStyles.None, CultureInfo.InvariantCulture, out var orderId))
+        var callback = _vnPayPaymentService.ParseCallback(Request.Query);
+        if (!callback.IsValid)
         {
-            TempData["OrderError"] = "Không thể xác thực kết quả trả về từ VNPAY.";
-            return RedirectToAction("Index", "Home");
+            TempData["OrderError"] = "Không thể xác thực kết quả trả về từ VNPAY. Nếu tài khoản đã bị trừ tiền, vui lòng liên hệ cửa hàng.";
+            return RedirectToAction(nameof(Index));
         }
 
-        var succeeded = Request.Query["vnp_ResponseCode"] == "00"
-            && Request.Query["vnp_TransactionStatus"] == "00";
-        TempData[succeeded ? "OrderSuccess" : "OrderError"] = succeeded
-            ? "VNPAY đã trả kết quả. Trạng thái đơn hàng sẽ được cập nhật sau khi hệ thống xác nhận giao dịch."
-            : "Thanh toán VNPAY chưa hoàn tất. Bạn có thể thử thanh toán lại từ chi tiết đơn hàng.";
-        return RedirectToAction(nameof(Details), new { id = orderId });
+        var resultCode = await _orderService.ProcessVnPayNotificationAsync(
+            callback.OrderId, callback.Amount, callback.Succeeded, callback.TransactionNo, cancellationToken);
+
+        if (callback.Succeeded && resultCode is "00" or "02")
+        {
+            TempData["OrderSuccess"] = "Thanh toán VNPAY thành công! Cửa hàng sẽ xác nhận và chuẩn bị đơn hàng cho bạn.";
+        }
+        else if (resultCode == "04")
+        {
+            TempData["OrderError"] = "Số tiền thanh toán không khớp với đơn hàng. Vui lòng liên hệ cửa hàng để được hỗ trợ.";
+        }
+        else
+        {
+            TempData["OrderError"] = $"Thanh toán chưa hoàn tất: {_vnPayPaymentService.DescribeResponseCode(callback.ResponseCode)} "
+                + "Bạn có thể thanh toán lại hoặc chuyển sang thanh toán khi nhận hàng.";
+        }
+
+        return RedirectToAction(nameof(Details), new { id = callback.OrderId });
     }
 
     [AllowAnonymous]
     [HttpGet]
     public async Task<IActionResult> VnPayIpn(CancellationToken cancellationToken)
     {
-        var query = Request.Query;
-        if (query.Count == 0)
+        if (Request.Query.Count == 0)
         {
             return VnPayIpnResponse("99");
         }
 
-        if (!_vnPayPaymentService.ValidateSignature(query))
+        var callback = _vnPayPaymentService.ParseCallback(Request.Query);
+        if (!callback.IsValid)
         {
-            return VnPayIpnResponse("97");
+            return VnPayIpnResponse(callback.ResponseCode);
         }
 
-        if (!query.TryGetValue("vnp_TxnRef", out var reference)
-            || reference.Count != 1
-            || !int.TryParse(reference[0], NumberStyles.None, CultureInfo.InvariantCulture, out var orderId)
-            || !query.TryGetValue("vnp_ResponseCode", out var responseCode)
-            || responseCode.Count != 1
-            || !query.TryGetValue("vnp_TransactionStatus", out var transactionStatus)
-            || transactionStatus.Count != 1)
-        {
-            return VnPayIpnResponse("99");
-        }
-
-        if (!query.TryGetValue("vnp_Amount", out var amountValue)
-            || amountValue.Count != 1
-            || !long.TryParse(amountValue[0], NumberStyles.None, CultureInfo.InvariantCulture, out var amount))
-        {
-            return VnPayIpnResponse("04");
-        }
-
-        var paymentSucceeded = responseCode[0] == "00" && transactionStatus[0] == "00";
         var resultCode = await _orderService.ProcessVnPayNotificationAsync(
-            orderId, amount, paymentSucceeded, cancellationToken);
+            callback.OrderId, callback.Amount, callback.Succeeded, callback.TransactionNo, cancellationToken);
         return VnPayIpnResponse(resultCode);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SwitchToCod(int id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _orderService.SwitchToCashOnDeliveryAsync(id, GetUserId(), cancellationToken);
+            TempData["OrderSuccess"] = "Đã chuyển sang thanh toán khi nhận hàng (COD). Cửa hàng sẽ liên hệ xác nhận đơn sớm nhất.";
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException exception)
+        {
+            TempData["OrderError"] = exception.Message;
+        }
+
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     [HttpGet]
@@ -219,6 +249,22 @@ public class OrdersController : Controller
         model.Items = cart.Items;
         model.ShippingFee = _orderService.CalculateShippingFee(model.Subtotal);
         model.FreeShippingThreshold = _orderService.ShippingPolicy.FreeShippingThreshold;
+        model.VnPayAvailable = _vnPayPaymentService.IsConfigured;
+        model.VnPayTimeoutMinutes = (int)_vnPayPaymentService.PaymentTimeout.TotalMinutes;
+    }
+
+    /// <summary>IPv4 address for vnp_IpAddr (VNPAY rejects "::1" and IPv6-mapped forms).</summary>
+    private string GetClientIpAddress()
+    {
+        var address = HttpContext.Connection.RemoteIpAddress;
+        if (address is null || System.Net.IPAddress.IsLoopback(address))
+        {
+            return "127.0.0.1";
+        }
+
+        return address.IsIPv4MappedToIPv6 || address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
+            ? address.MapToIPv4().ToString()
+            : address.ToString();
     }
 
     private string GetUserId()

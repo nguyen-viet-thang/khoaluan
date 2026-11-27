@@ -166,8 +166,8 @@
                 data: {
                     labels: timeline.map(point => point.Label),
                     datasets: [
-                        { type: 'bar', label: 'Doanh thu', data: timeline.map(point => point.Revenue), backgroundColor: 'rgba(57, 119, 232, 0.75)', yAxisID: 'revenue' },
-                        { type: 'line', label: 'Đơn đặt', data: timeline.map(point => point.OrdersPlaced), borderColor: '#f59e0b', backgroundColor: '#f59e0b', tension: 0, pointRadius: 2, yAxisID: 'orders' }
+                        { type: 'bar', label: 'Doanh thu', data: timeline.map(point => point.Revenue), backgroundColor: 'rgba(255, 108, 0, 0.78)', yAxisID: 'revenue' },
+                        { type: 'line', label: 'Đơn đặt', data: timeline.map(point => point.OrdersPlaced), borderColor: '#1f2937', backgroundColor: '#1f2937', tension: 0, pointRadius: 2, yAxisID: 'orders' }
                     ]
                 },
                 options: {
@@ -187,7 +187,7 @@
                     type: 'doughnut',
                     data: {
                         labels: categories.map(category => category.CategoryName),
-                        datasets: [{ data: categories.map(category => category.Revenue), backgroundColor: ['#3977e8', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#64748b'] }]
+                        datasets: [{ data: categories.map(category => category.Revenue), backgroundColor: ['#ff6c00', '#ffb020', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b'] }]
                     },
                     options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: context => `${context.label}: ${money(context.parsed)}` } } } }
                 });

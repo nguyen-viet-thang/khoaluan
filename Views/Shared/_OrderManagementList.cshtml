@@ -1,0 +1,161 @@
+@model PopPop.Models.OrderManagementListViewModel
+@using PopPop.Data.Entities.Enums
+@using PopPop.Services.Implementations
+@* Order work queue shared by the Admin and Staff areas. Caller sets ViewData["Area"].
+   Quick actions: one-click "next step" per row, and bulk "next step" for the selected rows. *@
+@{
+    var area = ViewData["Area"] as string ?? "Staff";
+    var returnUrl = $"{Context.Request.PathBase}{Context.Request.Path}{Context.Request.QueryString}";
+    var statuses = Enum.GetValues<OrderStatus>();
+    var selectable = Model.Orders.Count(order => order.NextStatus.HasValue && !order.AwaitingOnlinePayment);
+}
+<div class="admin-page-heading">
+    <div>
+        <h2>Danh sách đơn hàng</h2>
+        <p>@Model.OpenCount đơn đang mở. Đơn chờ lâu nhất ở trên cùng; bấm nút bước tiếp theo để xử lý ngay không cần mở đơn.</p>
+    </div>
+</div>
+
+<nav class="admin-tabs" aria-label="Lọc theo trạng thái">
+    <a class="admin-tab @(Model.Status is null ? "is-active" : string.Empty)" asp-area="@area" asp-controller="Orders" asp-action="Index" asp-route-search="@Model.Search">
+        Tất cả <span class="admin-tab__count">@Model.TotalCount</span>
+    </a>
+    @foreach (var status in statuses)
+    {
+        var count = Model.StatusCounts.GetValueOrDefault(status);
+        <a class="admin-tab @(Model.Status == status ? "is-active" : string.Empty) @(count == 0 ? "is-empty" : string.Empty)"
+           asp-area="@area" asp-controller="Orders" asp-action="Index" asp-route-status="@status" asp-route-search="@Model.Search">
+            @OrderDisplay.StatusText(status) <span class="admin-tab__count @(status == OrderStatus.Pending && count > 0 ? "is-hot" : string.Empty)">@count</span>
+        </a>
+    }
+</nav>
+
+<form class="admin-toolbar" method="get" asp-area="@area" asp-controller="Orders" asp-action="Index">
+    @if (Model.Status.HasValue)
+    {
+        <input type="hidden" name="status" value="@Model.Status" />
+    }
+    <div class="admin-search">
+        <i class="fa fa-search" aria-hidden="true"></i>
+        <input class="form-control" type="search" name="search" value="@Model.Search" placeholder="Mã đơn, tên hoặc số điện thoại" aria-label="Tìm đơn hàng" data-hotkey="/" />
+        <kbd title="Nhấn / để tìm nhanh">/</kbd>
+    </div>
+    <button class="btn btn-primary" type="submit">Tìm</button>
+    @if (!string.IsNullOrWhiteSpace(Model.Search) || Model.Status.HasValue)
+    {
+        <a class="btn btn-outline-secondary" asp-area="@area" asp-controller="Orders" asp-action="Index">Xóa lọc</a>
+    }
+</form>
+
+@* Forms the row buttons/checkboxes point to (via the form attribute) so no form is nested in the table. *@
+<form id="order-quick-form" method="post" class="d-none">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="returnUrl" value="@returnUrl" />
+</form>
+<form id="order-bulk-form" method="post" asp-area="@area" asp-controller="Orders" asp-action="Advance" class="d-none">
+    <input type="hidden" name="returnUrl" value="@returnUrl" />
+</form>
+
+<div class="admin-panel">
+    <div class="admin-panel-header">
+        <h3>@Model.Orders.Count đơn hàng</h3>
+        @if (selectable > 0)
+        {
+            <div class="admin-bulk" data-bulk-bar hidden>
+                <span><strong data-bulk-count>0</strong> đơn đã chọn</span>
+                <button class="btn btn-sm btn-primary" type="submit" form="order-bulk-form"
+                        data-confirm="Chuyển các đơn đã chọn sang bước tiếp theo?">
+                    <i class="fa fa-forward"></i>Chuyển bước tiếp theo
+                </button>
+            </div>
+        }
+    </div>
+    @if (Model.Orders.Count == 0)
+    {
+        <div class="admin-empty">Không tìm thấy đơn hàng phù hợp.</div>
+    }
+    else
+    {
+        <div class="admin-table-wrap">
+            <table class="admin-table admin-table--orders">
+                <thead>
+                    <tr>
+                        <th class="admin-table__check">
+                            @if (selectable > 0)
+                            {
+                                <input type="checkbox" class="form-check-input" data-check-all aria-label="Chọn tất cả đơn có thể chuyển bước" />
+                            }
+                        </th>
+                        <th>Mã đơn</th>
+                        <th>Khách hàng</th>
+                        <th>Ngày đặt</th>
+                        <th>Thanh toán</th>
+                        <th>Trạng thái</th>
+                        <th class="text-end">Tổng tiền</th>
+                        <th class="text-end">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var group in Model.Orders.GroupBy(order => order.Status))
+                    {
+                        var isOpen = group.Key is not (OrderStatus.Completed or OrderStatus.Cancelled);
+                        @if (Model.Status is null)
+                        {
+                            <tr class="admin-table__group">
+                                <td colspan="8">
+                                    <span class="admin-status @OrderDisplay.StatusClass(group.Key)">@OrderDisplay.StatusText(group.Key)</span>
+                                    <span class="admin-table__group-count">@group.Count() đơn · @(isOpen ? "đơn đặt sớm nhất ở trên" : "đơn mới nhất ở trên")</span>
+                                </td>
+                            </tr>
+                        }
+                        @foreach (var order in group)
+                        {
+                            var canAdvance = order.NextStatus.HasValue && !order.AwaitingOnlinePayment;
+                            <tr class="@(order.AwaitingOnlinePayment ? "is-muted" : string.Empty)">
+                                <td class="admin-table__check">
+                                    @if (canAdvance)
+                                    {
+                                        <input type="checkbox" class="form-check-input" name="ids" value="@order.Id" form="order-bulk-form" data-check-item aria-label="Chọn đơn @order.OrderCode" />
+                                    }
+                                </td>
+                                <td><a class="admin-link" asp-area="@area" asp-controller="Orders" asp-action="Details" asp-route-id="@order.Id" asp-route-returnUrl="@returnUrl">@order.OrderCode</a></td>
+                                <td>@order.CustomerName<div class="admin-stat-note">@order.CustomerPhone</div></td>
+                                <td>@ShopClock.ToLocal(order.CreatedAt).ToString("dd/MM HH:mm")<div class="admin-stat-note">@OrderDisplay.Ago(order.CreatedAt)</div></td>
+                                <td>
+                                    @if (order.PaymentStatus == PaymentStatus.Paid)
+                                    {
+                                        <span class="admin-pay is-paid"><i class="fa fa-check"></i>@(order.PaymentMethod == PaymentMethod.VnPay ? "VNPAY" : "COD") · Đã thu</span>
+                                    }
+                                    else if (order.AwaitingOnlinePayment)
+                                    {
+                                        <span class="admin-pay is-waiting"><i class="fa fa-clock-o"></i>Chờ khách trả VNPAY</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="admin-pay">@(order.PaymentMethod == PaymentMethod.VnPay ? "VNPAY · Chưa trả" : "COD · Thu khi giao")</span>
+                                    }
+                                </td>
+                                <td><span class="admin-status @OrderDisplay.StatusClass(order.Status)">@order.StatusText</span></td>
+                                <td class="text-end"><strong>@order.TotalAmount.ToString("N0") ₫</strong></td>
+                                <td class="text-end">
+                                    <div class="admin-actions justify-content-end">
+                                        @if (canAdvance)
+                                        {
+                                            <button type="submit" class="btn btn-sm btn-primary" form="order-quick-form"
+                                                    formaction="@Url.Action("UpdateStatus", "Orders", new { area, id = order.Id, nextStatus = order.NextStatus })"
+                                                    title="Chuyển sang: @OrderDisplay.StatusText(order.NextStatus!.Value)">
+                                                <i class="fa @OrderDisplay.ActionIcon(order.NextStatus!.Value)"></i>@OrderDisplay.ActionText(order.NextStatus!.Value)
+                                            </button>
+                                        }
+                                        <a class="btn btn-sm btn-outline-secondary" asp-area="@area" asp-controller="Orders" asp-action="Details" asp-route-id="@order.Id" asp-route-returnUrl="@returnUrl"
+                                           title="Xem chi tiết đơn @order.OrderCode" aria-label="Xem chi tiết đơn @order.OrderCode"><i class="fa fa-eye"></i></a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

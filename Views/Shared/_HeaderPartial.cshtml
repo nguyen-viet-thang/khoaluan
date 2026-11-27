@@ -12,103 +12,147 @@
         badges = await HeaderBadgeService.GetCountsAsync(currentUserId!, Context.RequestAborted);
     }
 
+    var menu = await HeaderBadgeService.GetMenuAsync(Context.RequestAborted);
     var cartQuantity = badges.CartQuantity;
     var bellCount = badges.UnreadNotificationCount;
+
+    var routeController = ViewContext.RouteData.Values["controller"]?.ToString();
+    var routeAction = ViewContext.RouteData.Values["action"]?.ToString();
+    var routeArea = ViewContext.RouteData.Values["area"]?.ToString();
+    bool IsActive(string controller, string? action = null) =>
+        string.IsNullOrEmpty(routeArea)
+        && string.Equals(routeController, controller, StringComparison.OrdinalIgnoreCase)
+        && (action is null || string.Equals(routeAction, action, StringComparison.OrdinalIgnoreCase));
+    string ActiveClass(string controller, string? action = null) => IsActive(controller, action) ? "is-active" : string.Empty;
+    string? Current(string controller, string? action = null) => IsActive(controller, action) ? "page" : null;
 }
 
-<header class="header_area store-header">
-    <div class="main_menu">
-        <nav class="navbar navbar-expand-lg navbar-light main_box">
-            <div class="container">
-                <a asp-controller="Home" asp-action="Index" class="navbar-brand logo_h" aria-label="PôpPôp - Trang chủ">
-                    <img src="~/img/logo.png" alt="PôpPôp">
-                </a>
-                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
-                        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Mở menu">
-                    <span class="icon-bar"></span>
-                    <span class="icon-bar"></span>
-                    <span class="icon-bar"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                    <ul class="navbar-nav store-header__links">
-                        <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index">Trang chủ</a></li>
-                        <li class="nav-item"><a class="nav-link" asp-controller="Products" asp-action="Index">Sản phẩm</a></li>
-                        <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index" asp-fragment="categories">Danh mục</a></li>
-                        @* Guests are sent to login first, then back to the order-code form. *@
-                        <li class="nav-item"><a class="nav-link" asp-area="" asp-controller="Claims" asp-action="Start">Bảo hành</a></li>
-                        <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index" asp-fragment="contact">Liên hệ</a></li>
-                    </ul>
-                    <ul class="navbar-nav store-header__actions">
-                        <li class="nav-item">
-                            <button class="store-header__icon search" type="button" aria-label="Tìm kiếm sản phẩm">
-                                <span class="lnr lnr-magnifier" id="search"></span>
-                            </button>
-                        </li>
-                        <li class="nav-item store-notify">
-                            <button class="store-header__icon store-header__notification" id="store-notifications" type="button"
-                                    aria-label="Thông báo, @bellCount mục chưa đọc" title="Thông báo"
-                                    aria-haspopup="true" aria-expanded="false" data-has-panel="@(isCustomer ? "true" : "false")"
-                                    data-hub-url="@Url.Content("~/hubs/notifications")" data-guest-url="@Url.Action("Index", "Notifications", new { area = "" })">
-                                <i class="fa fa-bell" aria-hidden="true"></i>
-                                <span class="store-header__badge" id="store-notifications-badge" aria-hidden="true" hidden="@(bellCount == 0)">@(bellCount > 99 ? "99+" : bellCount.ToString())</span>
-                            </button>
-                            @if (isCustomer)
-                            {
-                                <div class="store-notify__panel" id="store-notify-panel" hidden role="dialog" aria-label="Thông báo">
-                                    <div class="store-notify__head">
-                                        <strong>Thông báo</strong>
-                                        @if (badges.UnreadNotificationCount > 0)
-                                        {
-                                            <form asp-area="" asp-controller="Notifications" asp-action="MarkAllRead" method="post" class="m-0">
-                                                <button type="submit" class="store-notify__link">Đánh dấu đã đọc</button>
-                                            </form>
-                                        }
-                                    </div>
-                                    <ul class="store-notify__list" id="store-notify-list">
-                                        @foreach (var item in badges.RecentNotifications)
-                                        {
-                                            <li>
-                                                <a class="store-notify__item @(item.IsRead ? string.Empty : "is-unread")" asp-area="" asp-controller="Notifications" asp-action="Open" asp-route-id="@item.Id">
-                                                    <span class="store-notify__title">@item.Title</span>
-                                                    @if (!string.IsNullOrWhiteSpace(item.Message)) { <span class="store-notify__message">@item.Message</span> }
-                                                    <span class="store-notify__time">@PopPop.Services.Implementations.ShopClock.ToLocal(item.CreatedAt).ToString("dd/MM HH:mm")</span>
-                                                </a>
-                                            </li>
-                                        }
-                                    </ul>
-                                    @if (badges.RecentNotifications.Count == 0)
+<header class="store-header" id="store-header">
+    <nav class="navbar navbar-expand-lg store-header__nav" aria-label="Điều hướng chính">
+        <div class="container store-header__bar">
+            <a asp-area="" asp-controller="Home" asp-action="Index" class="store-header__brand" aria-label="PôpPôp - Trang chủ">
+                <img src="~/img/logo.png" alt="PôpPôp">
+            </a>
+
+            <div class="collapse navbar-collapse store-header__menu" id="store-header-menu">
+                <ul class="navbar-nav store-header__links">
+                    <li class="nav-item"><a class="nav-link @ActiveClass("Home", "Index")" aria-current="@Current("Home", "Index")" asp-area="" asp-controller="Home" asp-action="Index">Trang chủ</a></li>
+                    <li class="nav-item dropdown store-mega">
+                        <a class="nav-link dropdown-toggle @ActiveClass("Products")" aria-current="@Current("Products")" href="@Url.Action("Index", "Products", new { area = "" })"
+                           id="store-mega-toggle" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Sản phẩm</a>
+                        <div class="dropdown-menu store-mega__panel" aria-labelledby="store-mega-toggle">
+                            <div class="store-mega__col">
+                                <h6>Danh mục</h6>
+                                <ul>
+                                    @foreach (var category in menu.Categories)
                                     {
-                                        <p class="store-notify__empty" id="store-notify-empty">Chưa có thông báo nào.</p>
+                                        <li><a asp-area="" asp-controller="Products" asp-action="Index" asp-route-categoryId="@category.Id">@category.Name <small>@category.ProductCount</small></a></li>
                                     }
-                                    <a class="store-notify__all" asp-area="" asp-controller="Notifications" asp-action="Index">Xem tất cả thông báo</a>
-                                </div>
-                            }
-                        </li>
-                        <li class="nav-item">
-                            <a asp-controller="Cart" asp-action="Index" class="store-header__icon store-header__cart"
-                               aria-label="Giỏ hàng, @cartQuantity sản phẩm">
-                                <span class="ti-bag" aria-hidden="true"></span>
-                                @if (cartQuantity > 0)
-                                {
-                                    <span class="store-header__badge" aria-hidden="true">@(cartQuantity > 99 ? "99+" : cartQuantity.ToString())</span>
-                                }
-                            </a>
-                        </li>
-                        <partial name="_LoginPartial" />
-                    </ul>
-                </div>
+                                </ul>
+                            </div>
+                            <div class="store-mega__col">
+                                <h6>Thương hiệu</h6>
+                                <ul class="store-mega__brands">
+                                    @foreach (var brand in menu.Brands)
+                                    {
+                                        <li><a asp-area="" asp-controller="Products" asp-action="Index" asp-route-brandId="@brand.Id">@brand.Name</a></li>
+                                    }
+                                </ul>
+                            </div>
+                            <div class="store-mega__foot">
+                                <a asp-area="" asp-controller="Products" asp-action="Index" class="store-mega__all">Xem tất cả sản phẩm <span class="lnr lnr-arrow-right" aria-hidden="true"></span></a>
+                                <a asp-area="" asp-controller="Products" asp-action="Index" asp-route-sort="newest">Hàng mới về</a>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="nav-item"><a class="nav-link store-header__advisor @ActiveClass("Advisor")" aria-current="@Current("Advisor")" asp-area="" asp-controller="Advisor" asp-action="Index"><i class="fa fa-magic" aria-hidden="true"></i> Tư vấn chọn vợt</a></li>
+                    @* Guests are sent to login first, then back to the order-code form. *@
+                    <li class="nav-item"><a class="nav-link @ActiveClass("Claims")" aria-current="@Current("Claims")" asp-area="" asp-controller="Claims" asp-action="Start">Bảo hành</a></li>
+                    @if (isCustomer)
+                    {
+                        <li class="nav-item"><a class="nav-link @ActiveClass("Orders")" aria-current="@Current("Orders")" asp-area="" asp-controller="Orders" asp-action="Index">Đơn hàng</a></li>
+                    }
+                    <li class="nav-item"><a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index" asp-fragment="contact">Liên hệ</a></li>
+                </ul>
             </div>
-        </nav>
-    </div>
+
+            <ul class="store-header__actions">
+                <li>
+                    <button class="store-header__search" id="search" type="button" data-search-open aria-label="Tìm kiếm sản phẩm" title="Tìm kiếm (phím /)">
+                        <span class="lnr lnr-magnifier" aria-hidden="true"></span>
+                        <span class="store-header__search-text">Tìm vợt, giày, phụ kiện...</span>
+                        <kbd aria-hidden="true">/</kbd>
+                    </button>
+                </li>
+                <li class="store-notify">
+                    <button class="store-header__icon store-header__notification" id="store-notifications" type="button"
+                            aria-label="Thông báo, @bellCount mục chưa đọc" title="Thông báo"
+                            aria-haspopup="true" aria-expanded="false" data-has-panel="@(isCustomer ? "true" : "false")"
+                            data-hub-url="@Url.Content("~/hubs/notifications")" data-guest-url="@Url.Action("Index", "Notifications", new { area = "" })">
+                        <i class="fa fa-bell-o" aria-hidden="true"></i>
+                        <span class="store-header__badge" id="store-notifications-badge" aria-hidden="true" hidden="@(bellCount == 0)">@(bellCount > 99 ? "99+" : bellCount.ToString())</span>
+                    </button>
+                    @if (isCustomer)
+                    {
+                        <div class="store-notify__panel" id="store-notify-panel" hidden role="dialog" aria-label="Thông báo">
+                            <div class="store-notify__head">
+                                <strong>Thông báo</strong>
+                                @if (badges.UnreadNotificationCount > 0)
+                                {
+                                    <form asp-area="" asp-controller="Notifications" asp-action="MarkAllRead" method="post" class="m-0">
+                                        <button type="submit" class="store-notify__link">Đánh dấu đã đọc</button>
+                                    </form>
+                                }
+                            </div>
+                            <ul class="store-notify__list" id="store-notify-list">
+                                @foreach (var item in badges.RecentNotifications)
+                                {
+                                    <li>
+                                        <a class="store-notify__item @(item.IsRead ? string.Empty : "is-unread")" asp-area="" asp-controller="Notifications" asp-action="Open" asp-route-id="@item.Id">
+                                            <span class="store-notify__title">@item.Title</span>
+                                            @if (!string.IsNullOrWhiteSpace(item.Message)) { <span class="store-notify__message">@item.Message</span> }
+                                            <span class="store-notify__time">@PopPop.Services.Implementations.ShopClock.ToLocal(item.CreatedAt).ToString("dd/MM HH:mm")</span>
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                            @if (badges.RecentNotifications.Count == 0)
+                            {
+                                <p class="store-notify__empty" id="store-notify-empty">Chưa có thông báo nào.</p>
+                            }
+                            <a class="store-notify__all" asp-area="" asp-controller="Notifications" asp-action="Index">Xem tất cả thông báo</a>
+                        </div>
+                    }
+                </li>
+                <li>
+                    <a asp-area="" asp-controller="Cart" asp-action="Index" class="store-header__icon store-header__cart @ActiveClass("Cart")"
+                       aria-label="Giỏ hàng, @cartQuantity sản phẩm" title="Giỏ hàng">
+                        <span class="ti-bag" aria-hidden="true"></span>
+                        @if (cartQuantity > 0)
+                        {
+                            <span class="store-header__badge" aria-hidden="true">@(cartQuantity > 99 ? "99+" : cartQuantity.ToString())</span>
+                        }
+                    </a>
+                </li>
+                <partial name="_LoginPartial" />
+                <li class="store-header__toggler-item">
+                    <button class="store-header__toggler" type="button" data-toggle="collapse" data-target="#store-header-menu"
+                            aria-controls="store-header-menu" aria-expanded="false" aria-label="Mở menu">
+                        <span></span><span></span><span></span>
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </nav>
     <div class="search_input" id="search_input_box">
         <div class="container search-panel">
-            <form id="search-form" asp-controller="Products" asp-action="Index" method="get" role="search"
-                  data-filters-url="@Url.Action("SearchFilters", "Products")" data-results-url="@Url.Action("Search", "Products")">
+            <form id="search-form" asp-area="" asp-controller="Products" asp-action="Index" method="get" role="search"
+                  data-filters-url="@Url.Action("SearchFilters", "Products", new { area = "" })" data-results-url="@Url.Action("Search", "Products", new { area = "" })">
                 <div class="search-form">
                     <input type="search" name="q" class="form-control" id="search_input" maxlength="100"
                            placeholder="Tìm sản phẩm, VD: vợt yonex nhẹ đầu, giày 42..." autocomplete="off" aria-label="Từ khóa">
                     <button type="button" class="btn btn-link search-clear" id="clear_search" aria-label="Xóa từ khóa">×</button>
-                    <span class="lnr lnr-cross" id="close_search" title="Đóng tìm kiếm" role="button" tabindex="0"></span>
+                    <span class="lnr lnr-cross" id="close_search" title="Đóng tìm kiếm (Esc)" role="button" tabindex="0"></span>
                 </div>
                 <div class="search-advanced">
                     <div class="search-advanced__head">

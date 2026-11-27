@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using PopPop.Data.Entities.Enums;
 
 namespace PopPop.Models;
@@ -34,6 +34,10 @@ public sealed class CheckoutViewModel
     [EnumDataType(typeof(PaymentMethod), ErrorMessage = "Phương thức thanh toán không hợp lệ.")]
     [Display(Name = "Phương thức thanh toán")]
     public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.CashOnDelivery;
+
+    /// <summary>False when the VNPAY gateway is not configured: only COD is offered.</summary>
+    public bool VnPayAvailable { get; set; }
+    public int VnPayTimeoutMinutes { get; set; }
 
     public IReadOnlyList<CartLineViewModel> Items { get; set; } = [];
     public decimal Subtotal => Items.Sum(item => item.LineTotal);

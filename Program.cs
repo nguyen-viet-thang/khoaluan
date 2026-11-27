@@ -121,6 +121,8 @@ builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<ISpecRepository, SpecRepository>();
 builder.Services.AddScoped<ISpecManagementService, SpecManagementService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IAdvisorRepository, AdvisorRepository>();
+builder.Services.AddScoped<IRacketAdvisorService, RacketAdvisorService>();
 
 // Register services
 builder.Services.AddScoped<IProductService, ProductService>();
@@ -128,6 +130,8 @@ builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IHeaderBadgeService, HeaderBadgeService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IVnPayPaymentService, VnPayPaymentService>();
+builder.Services.AddHostedService<OnlinePaymentExpiryService>();
+builder.Services.AddMemoryCache();
 builder.Services.AddScoped<IProductManagementService, ProductManagementService>();
 builder.Services.AddSingleton<IProductImageStorage, ProductImageStorage>();
 builder.Services.AddScoped<ICatalogGroupService<Category>, CategoryManagementService>();

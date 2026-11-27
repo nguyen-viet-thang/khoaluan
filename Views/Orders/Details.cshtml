@@ -38,6 +38,30 @@
             Đơn hàng <strong>@Model.OrderCode</strong> — <strong>@statusText</strong>
         </div>
 
+        @if (Model.PaymentDeadline is { } paymentDeadline)
+        {
+            var secondsLeft = Math.Max(0, (int)(paymentDeadline - DateTime.UtcNow).TotalSeconds);
+            <div class="order-pay-card" id="order-pay-card" data-seconds-left="@secondsLeft">
+                <div class="order-pay-card__info">
+                    <i class="fa fa-clock-o" aria-hidden="true"></i>
+                    <div>
+                        <strong>Đơn hàng đang chờ thanh toán VNPAY: @Model.TotalAmount.ToString("N0") ₫</strong>
+                        <span>
+                            Vui lòng thanh toán trước @PopPop.Services.Implementations.ShopClock.ToLocal(paymentDeadline).ToString("HH:mm dd/MM")
+                            (còn <b id="order-pay-countdown">@(secondsLeft / 60):@((secondsLeft % 60).ToString("00"))</b>). Quá hạn, đơn sẽ tự hủy và sản phẩm được trả lại kho.
+                        </span>
+                    </div>
+                </div>
+                <div class="order-pay-card__actions">
+                    <a asp-controller="Orders" asp-action="Pay" asp-route-id="@Model.Id" class="primary-btn" id="order-pay-now">Thanh toán ngay</a>
+                    <form asp-controller="Orders" asp-action="SwitchToCod" asp-route-id="@Model.Id" method="post"
+                          onsubmit="return confirm('Chuyển đơn @Model.OrderCode sang thanh toán khi nhận hàng (COD)?');">
+                        <button type="submit" class="btn btn-outline-secondary">Đổi sang COD</button>
+                    </form>
+                </div>
+            </div>
+        }
+
         <div class="row">
             <div class="col-lg-6">
                 <h4>Thông tin đơn hàng</h4>
@@ -45,13 +69,7 @@
                 <p><strong>Ngày đặt:</strong> @Model.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
                 <p><strong>Cập nhật gần nhất:</strong> @Model.UpdatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
                 <p><strong>Phương thức thanh toán:</strong> @(Model.PaymentMethod == PaymentMethod.VnPay ? "VNPAY" : "Thanh toán khi nhận hàng (COD)")</p>
-                <p><strong>Trạng thái thanh toán:</strong> @(Model.PaymentStatus == PaymentStatus.Paid ? "Đã thanh toán" : "Chưa thanh toán")</p>
-                @if (Model.PaymentMethod == PaymentMethod.VnPay
-                    && Model.PaymentStatus != PaymentStatus.Paid
-                    && Model.Status != OrderStatus.Cancelled)
-                {
-                    <a asp-controller="Orders" asp-action="Pay" asp-route-id="@Model.Id" class="btn btn-primary">Thử thanh toán VNPAY</a>
-                }
+                <p><strong>Trạng thái thanh toán:</strong> @(Model.PaymentStatus == PaymentStatus.Paid ? "Đã thanh toán" : Model.AwaitingOnlinePayment ? "Chờ thanh toán VNPAY" : "Chưa thanh toán")</p>
                 @if (Model.PaidAt.HasValue)
                 {
                     <p><strong>Thanh toán lúc:</strong> @Model.PaidAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
@@ -190,3 +208,25 @@
         <a asp-controller="Home" asp-action="Index" class="primary-btn mt-4">Tiếp tục mua sắm</a>
     </div>
 </section>
+
+@if (Model.AwaitingOnlinePayment)
+{
+    <script>
+        (function () {
+            var card = document.getElementById('order-pay-card');
+            var label = document.getElementById('order-pay-countdown');
+            if (!card || !label) return;
+            var left = parseInt(card.dataset.secondsLeft, 10) || 0;
+            var timer = setInterval(function () {
+                left = Math.max(0, left - 1);
+                label.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+                if (left === 0) {
+                    clearInterval(timer);
+                    card.classList.add('is-expired');
+                    document.getElementById('order-pay-now')?.remove();
+                    label.textContent = 'hết hạn';
+                }
+            }, 1000);
+        })();
+    </script>
+}

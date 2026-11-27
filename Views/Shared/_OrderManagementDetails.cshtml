@@ -1,40 +1,93 @@
-@model PopPop.Models.OrderManagementDetailsViewModel
+﻿@model PopPop.Models.OrderManagementDetailsViewModel
 @using PopPop.Data.Entities.Enums
-@* Order details + status update form shared by the Admin and Staff areas. Caller sets ViewData["Area"]. *@
+@using PopPop.Services.Implementations
+@* Order details + status actions shared by the Admin and Staff areas. Caller sets ViewData["Area"];
+   the controller sets ViewData["ReturnUrl"] (the filtered list the user came from). *@
 @{
     var area = ViewData["Area"] as string ?? "Staff";
-    string StatusClass(OrderStatus status) => status switch
-    {
-        OrderStatus.Pending => "status-pending",
-        OrderStatus.Confirmed => "status-confirmed",
-        OrderStatus.Processing => "status-processing",
-        OrderStatus.Shipping => "status-shipping",
-        OrderStatus.Completed => "status-completed",
-        OrderStatus.Cancelled => "status-cancelled",
-        _ => string.Empty
-    };
-    string ActionText(OrderStatus status) => status switch
-    {
-        OrderStatus.Confirmed => "Xác nhận đơn",
-        OrderStatus.Processing => "Chuẩn bị hàng (đang xử lý)",
-        OrderStatus.Shipping => "Giao cho đơn vị vận chuyển",
-        OrderStatus.Completed => "Đã giao thành công",
-        OrderStatus.Cancelled => "Hủy đơn và hoàn kho",
-        _ => status.ToString()
-    };
+    var returnUrl = ViewData["ReturnUrl"] as string;
+    var backUrl = returnUrl ?? Url.Action("Index", "Orders", new { area });
+    var forward = Model.AvailableStatuses.Where(status => status != OrderStatus.Cancelled).ToList();
+    var canCancel = Model.AvailableStatuses.Contains(OrderStatus.Cancelled);
+    string[] cancelReasons =
+    [
+        "Khách yêu cầu hủy qua điện thoại",
+        "Không liên lạc được với khách",
+        "Hết hàng / không đủ hàng",
+        "Thông tin giao hàng không hợp lệ"
+    ];
 }
 <div class="admin-page-heading">
-    <div><h2>Đơn hàng @Model.OrderCode</h2><p>Đặt lúc @Model.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p></div>
-    <a class="btn btn-outline-secondary" asp-area="@area" asp-controller="Orders" asp-action="Index"><i class="fa fa-arrow-left me-1"></i>Quay lại</a>
+    <div>
+        <h2>Đơn hàng @Model.OrderCode <span class="admin-status @OrderDisplay.StatusClass(Model.Status)">@Model.StatusText</span></h2>
+        <p>Đặt lúc @ShopClock.ToLocal(Model.CreatedAt).ToString("dd/MM/yyyy HH:mm") · @OrderDisplay.Ago(Model.CreatedAt)</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="@backUrl"><i class="fa fa-arrow-left"></i>Quay lại danh sách</a>
 </div>
+
+@if (Model.AwaitingOnlinePayment)
+{
+    <div class="alert alert-warning d-flex align-items-center gap-2" role="status">
+        <i class="fa fa-clock-o"></i>
+        <div>Khách chưa thanh toán VNPAY. Hạn thanh toán: <strong>@ShopClock.ToLocal(Model.PaymentDeadline!.Value).ToString("HH:mm dd/MM")</strong>.
+            Chỉ xử lý đơn sau khi khách thanh toán; quá hạn hệ thống tự hủy đơn và hoàn kho.</div>
+    </div>
+}
+
+@if (Model.AvailableStatuses.Count > 0)
+{
+    <section class="admin-action-bar mb-4">
+        <form asp-area="@area" asp-controller="Orders" asp-action="UpdateStatus" method="post" class="admin-action-bar__main">
+            <input type="hidden" name="id" value="@Model.Id" />
+            <input type="hidden" name="returnUrl" value="@returnUrl" />
+            <input type="hidden" name="fromDetails" value="true" />
+            @foreach (var status in forward)
+            {
+                <button class="btn btn-primary btn-lg" type="submit" name="nextStatus" value="@status" disabled="@Model.AwaitingOnlinePayment">
+                    <i class="fa @OrderDisplay.ActionIcon(status)"></i>@OrderDisplay.ActionText(status)
+                </button>
+            }
+            <span class="admin-stat-note">Quy trình: xác nhận → chuẩn bị hàng → giao vận chuyển → giao thành công.</span>
+        </form>
+        @if (canCancel)
+        {
+            <button class="btn btn-outline-danger" type="button" data-toggle-target="#cancel-panel"><i class="fa fa-times"></i>Hủy đơn</button>
+        }
+    </section>
+
+    @if (canCancel)
+    {
+        <section class="admin-detail-card admin-cancel-panel mb-4" id="cancel-panel" hidden>
+            <h3>Hủy đơn @Model.OrderCode</h3>
+            <form asp-area="@area" asp-controller="Orders" asp-action="UpdateStatus" method="post"
+                  data-confirm="Hủy đơn hàng @Model.OrderCode và hoàn lại tồn kho?">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <input type="hidden" name="nextStatus" value="@OrderStatus.Cancelled" />
+                <input type="hidden" name="returnUrl" value="@returnUrl" />
+                <input type="hidden" name="fromDetails" value="true" />
+                <div class="admin-chips mb-2" role="group" aria-label="Lý do thường gặp">
+                    @foreach (var reason in cancelReasons)
+                    {
+                        <button type="button" class="admin-chip" data-fill-target="#cancel-reason" data-fill-value="@reason">@reason</button>
+                    }
+                </div>
+                <div class="admin-actions">
+                    <input id="cancel-reason" name="cancelReason" class="form-control" maxlength="300" required style="max-width:520px"
+                           placeholder="Lý do hủy (bắt buộc, khách sẽ nhận được thông báo)" />
+                    <button class="btn btn-danger" type="submit">Xác nhận hủy &amp; hoàn kho</button>
+                </div>
+            </form>
+        </section>
+    }
+}
+
 <div class="admin-order-grid mb-4">
     <section class="admin-detail-card">
         <h3>Thông tin đơn hàng</h3>
-        <div class="admin-detail-row"><span>Trạng thái</span><span class="admin-status @StatusClass(Model.Status)">@Model.StatusText</span></div>
-        <div class="admin-detail-row"><span>Thanh toán</span><strong>@(Model.PaymentMethod == PaymentMethod.VnPay ? "VNPAY" : "COD") — @(Model.PaymentStatus == PaymentStatus.Paid ? "Đã thanh toán" : "Chưa thanh toán")</strong></div>
+        <div class="admin-detail-row"><span>Thanh toán</span><strong>@(Model.PaymentMethod == PaymentMethod.VnPay ? "VNPAY" : "COD") — @(Model.PaymentStatus == PaymentStatus.Paid ? "Đã thanh toán" : Model.AwaitingOnlinePayment ? "Chờ khách thanh toán" : "Chưa thanh toán")</strong></div>
         @if (Model.PaidAt.HasValue)
         {
-            <div class="admin-detail-row"><span>Thanh toán lúc</span><span>@Model.PaidAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span></div>
+            <div class="admin-detail-row"><span>Thanh toán lúc</span><span>@ShopClock.ToLocal(Model.PaidAt.Value).ToString("dd/MM/yyyy HH:mm")</span></div>
         }
         <div class="admin-detail-row"><span>Mã đơn</span><strong>@Model.OrderCode</strong></div>
         <div class="admin-detail-row"><span>Khách hàng</span><strong>@Model.CustomerName</strong></div>
@@ -43,8 +96,20 @@
     <section class="admin-detail-card">
         <h3>Thông tin giao hàng</h3>
         <div class="admin-detail-row"><span>Người nhận</span><strong>@Model.RecipientName</strong></div>
-        <div class="admin-detail-row"><span>Điện thoại</span><strong>@Model.RecipientPhone</strong></div>
-        <div class="admin-detail-row"><span>Địa chỉ</span><strong>@Model.ShippingAddress</strong></div>
+        <div class="admin-detail-row">
+            <span>Điện thoại</span>
+            <span class="admin-actions">
+                <a class="admin-link" href="tel:@Model.RecipientPhone">@Model.RecipientPhone</a>
+                <button type="button" class="btn btn-sm btn-light" data-copy="@Model.RecipientPhone" title="Sao chép số điện thoại"><i class="fa fa-copy"></i></button>
+            </span>
+        </div>
+        <div class="admin-detail-row">
+            <span>Địa chỉ</span>
+            <span class="admin-actions justify-content-end text-end">
+                <strong>@Model.ShippingAddress</strong>
+                <button type="button" class="btn btn-sm btn-light" data-copy="@Model.RecipientName - @Model.RecipientPhone - @Model.ShippingAddress" title="Sao chép thông tin giao hàng"><i class="fa fa-copy"></i></button>
+            </span>
+        </div>
         <div class="admin-detail-row"><span>Ghi chú</span><span style="white-space:pre-line;text-align:right">@(string.IsNullOrWhiteSpace(Model.Note) ? "Không có" : Model.Note)</span></div>
     </section>
 </div>
@@ -61,46 +126,8 @@
             </tbody>
             <tfoot>
                 <tr><td colspan="4" class="text-end">Phí giao hàng</td><td>@(Model.ShippingFee == 0 ? "Miễn phí" : $"{Model.ShippingFee:N0} ₫")</td></tr>
-                <tr><th colspan="4" class="text-end">@(Model.PaymentMethod == PaymentMethod.VnPay ? "Tổng cộng" : "Tổng cộng (thu khi giao)")</th><th>@Model.TotalAmount.ToString("N0") ₫</th></tr>
+                <tr><th colspan="4" class="text-end">@(Model.PaymentMethod == PaymentMethod.CashOnDelivery && Model.PaymentStatus != PaymentStatus.Paid ? "Tổng cộng (thu khi giao)" : "Tổng cộng")</th><th>@Model.TotalAmount.ToString("N0") ₫</th></tr>
             </tfoot>
         </table>
     </div>
 </div>
-@if (Model.AvailableStatuses.Count > 0)
-{
-    <section class="admin-detail-card">
-        <h3>Cập nhật trạng thái</h3>
-        <p class="admin-stat-note">Chuyển đơn theo đúng quy trình: xác nhận → chuẩn bị hàng → giao hàng → giao thành công. Có thể hủy đơn khi hàng chưa giao cho đơn vị vận chuyển; tồn kho sẽ được hoàn lại tự động.</p>
-        <form asp-area="@area" asp-controller="Orders" asp-action="UpdateStatus" method="post" id="order-status-form">
-            <input type="hidden" name="id" value="@Model.Id" />
-            <div class="admin-actions mb-2">
-                <select class="form-select" name="nextStatus" id="next-status" required style="max-width:320px">
-                    <option value="">Chọn thao tác tiếp theo</option>
-                    @foreach (var status in Model.AvailableStatuses)
-                    {
-                        <option value="@status">@ActionText(status)</option>
-                    }
-                </select>
-                <button class="btn btn-primary" type="submit">Lưu trạng thái</button>
-            </div>
-            <div id="cancel-reason-group" hidden>
-                <label for="cancel-reason" class="form-label">Lý do hủy</label>
-                <input id="cancel-reason" name="cancelReason" class="form-control" maxlength="300" style="max-width:520px"
-                       placeholder="VD: Khách yêu cầu hủy qua điện thoại, không liên lạc được khách..." />
-            </div>
-        </form>
-    </section>
-    <script>
-        (function () {
-            var select = document.getElementById('next-status');
-            var group = document.getElementById('cancel-reason-group');
-            var form = document.getElementById('order-status-form');
-            select.addEventListener('change', function () { group.hidden = select.value !== 'Cancelled'; });
-            form.addEventListener('submit', function (event) {
-                if (select.value === 'Cancelled' && !confirm('Hủy đơn hàng @Model.OrderCode và hoàn lại tồn kho?')) {
-                    event.preventDefault();
-                }
-            });
-        })();
-    </script>
-}

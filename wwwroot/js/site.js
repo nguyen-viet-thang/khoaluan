@@ -148,7 +148,22 @@
         fetchSearchResults();
     });
 
-    (searchButton.closest('button') ?? searchButton).addEventListener('click', openSearch);
+    document.querySelectorAll('[data-search-open]').forEach(button => button.addEventListener('click', openSearch));
+    if (!searchButton.matches('[data-search-open]')) {
+        (searchButton.closest('button') ?? searchButton).addEventListener('click', openSearch);
+    }
+
+    // "/" or Ctrl+K opens the search panel from anywhere (unless the user is typing in a field).
+    document.addEventListener('keydown', (event) => {
+        const target = event.target;
+        const typing = target instanceof HTMLElement
+            && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+        const shortcut = (event.key === '/' && !typing) || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k');
+        if (shortcut && !searchBox.classList.contains('open')) {
+            event.preventDefault();
+            openSearch();
+        }
+    });
     // Click on the dark backdrop (outside the panel) closes it.
     searchBox.addEventListener('click', (event) => {
         if (event.target === searchBox) {
@@ -176,3 +191,23 @@
             closeSearchPanel();
         }
     });})();
+
+// Storefront header: shadow once the page scrolls, and the mobile menu closes after picking a link.
+(function () {
+    const header = document.getElementById('store-header');
+    if (!header) {
+        return;
+    }
+
+    const onScroll = () => header.classList.toggle('is-scrolled', window.scrollY > 4);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+
+    const menu = document.getElementById('store-header-menu');
+    menu?.addEventListener('click', (event) => {
+        const link = event.target instanceof Element ? event.target.closest('a[href]:not([data-toggle])') : null;
+        if (link && menu.classList.contains('show') && window.jQuery) {
+            window.jQuery(menu).collapse('hide');
+        }
+    });
+})();

@@ -1,7 +1,10 @@
-@model PopPop.Models.ProductDetailsViewModel
+﻿@model PopPop.Models.ProductDetailsViewModel
 
 @{
     ViewData["Title"] = Model.Name;
+    var racketFit = ViewData["RacketFit"] as PopPop.Models.RacketMatch;
+    int? suggestedVariantId = racketFit?.VariantId;
+    var fitPanel = new PopPop.Models.RacketFitPanel(racketFit, racketFit is not null || ViewData["IsRacket"] is true);
 }
 
 <section class="product_image_area section_gap">
@@ -63,6 +66,8 @@
                     </table>
                 }
 
+                <partial name="_RacketFit" model="fitPanel" />
+
                 @if (Model.Variants.Count == 0)
                 {
                     <div class="alert alert-secondary">Sản phẩm chưa có mẫu hoặc kích cỡ.</div>
@@ -73,13 +78,13 @@
                         <div class="form-group">
                             <label for="productVariantId">Chọn mẫu / kích cỡ</label>
                             <select id="productVariantId" name="productVariantId" class="form-control" required>
-                                <option value="" selected disabled>-- Chọn mẫu / kích cỡ --</option>
+                                <option value="" selected="@(suggestedVariantId is null)" disabled>-- Chọn mẫu / kích cỡ --</option>
                                 @foreach (var variant in Model.Variants)
                                 {
                                     var availabilityText = variant.IsAvailable
                                         ? $"Còn hàng: {variant.StockQuantity}"
                                         : variant.StockQuantity > 0 ? "Ngừng kinh doanh" : "Hết hàng";
-                                    <option value="@variant.Id" disabled="@(!variant.IsAvailable)">
+                                    <option value="@variant.Id" disabled="@(!variant.IsAvailable)" selected="@(variant.IsAvailable && variant.Id == suggestedVariantId)">
                                         @variant.Label — @variant.Price.ToString("N0") ₫ — @availabilityText
                                     </option>
                                 }

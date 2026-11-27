@@ -1,14 +1,14 @@
 
 //    Font Family
 
-$primary-font	: 'Comfortaa', sans-serif;
-$title-font     : 'Comfortaa', sans-serif;
+$primary-font	: 'Nunito', sans-serif;
+$title-font     : 'Nunito', sans-serif;
 
 /*--------------------------- Color variations ----------------------*/
 
 $primary-color	: #FF7300;
 $primary-color2	: #ff6c00;
-$primary-color3	: #828bb3;
+$primary-color3	: #ff6c00;
 $title-color	: #222222;
 $text-color		: #777777;
 $baseColor: #c5322d; 
@@ -20,4 +20,4 @@ $offwhite: #fcfcfc;
 
 /*--------------------------- Fonts ----------------------*/
 
-@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400..900;1,400..700&subset=vietnamese&display=swap');

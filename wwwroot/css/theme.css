@@ -1,0 +1,218 @@
+/* PôpPôp brand theme, loaded LAST by every layout (storefront, Identity, Admin, Staff).
+   One orange palette + the Nunito font everywhere, and Bootstrap 4 (storefront) / 5 (back office, Identity)
+   components re-coloured so nothing falls back to Bootstrap blue. Status colours (success/danger/warning) stay semantic. */
+@import url("https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400..900;1,400..700&display=swap");
+
+:root {
+    --brand: #ff6c00;
+    --brand-600: #e85d04;
+    --brand-700: #c2410c;
+    --brand-800: #9a3412;
+    --brand-50: #fff7f0;
+    --brand-100: #fff1e6;
+    --brand-200: #ffd2b3;
+    --brand-300: #ffb27a;
+    --brand-gradient: linear-gradient(90deg, #ff7300 0%, #ff6c00 100%);
+    --brand-gradient-warm: linear-gradient(120deg, #ff6c00 0%, #ff9a1f 60%, #ffba00 100%);
+    --brand-ring: 0 0 0 .2rem rgba(255, 108, 0, .18);
+    --font-sans: "Nunito", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+    /* Bootstrap 5 tokens (ignored by Bootstrap 4). */
+    --bs-primary: #ff6c00;
+    --bs-primary-rgb: 255, 108, 0;
+    --bs-link-color: #e85d04;
+    --bs-link-color-rgb: 232, 93, 4;
+    --bs-link-hover-color: #c2410c;
+    --bs-link-hover-color-rgb: 194, 65, 12;
+    --bs-body-font-family: var(--font-sans);
+    --bs-font-sans-serif: var(--font-sans);
+    --bs-focus-ring-color: rgba(255, 108, 0, .25);
+    --bs-primary-bg-subtle: #fff1e6;
+    --bs-primary-border-subtle: #ffd2b3;
+    --bs-primary-text-emphasis: #9a3412;
+}
+
+/* ---------- Font: Nunito everywhere (icon fonts keep their own family via their classes) ---------- */
+html body,
+body button,
+body input,
+body select,
+body textarea,
+body h1, body h2, body h3, body h4, body h5, body h6,
+body .btn,
+body .form-control,
+body .dropdown-menu,
+body .tooltip,
+body .popover {
+    font-family: var(--font-sans);
+}
+
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+    background: var(--brand-200);
+    color: #1f2328;
+}
+
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"],
+progress {
+    accent-color: var(--brand);
+}
+
+/* ---------- Buttons ---------- */
+.btn-primary {
+    --bs-btn-bg: var(--brand);
+    --bs-btn-border-color: var(--brand);
+    --bs-btn-hover-bg: var(--brand-600);
+    --bs-btn-hover-border-color: var(--brand-600);
+    --bs-btn-active-bg: var(--brand-700);
+    --bs-btn-active-border-color: var(--brand-700);
+    --bs-btn-disabled-bg: var(--brand);
+    --bs-btn-disabled-border-color: var(--brand);
+    --bs-btn-focus-shadow-rgb: 255, 108, 0;
+    background-color: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary.focus {
+    background-color: var(--brand-600);
+    border-color: var(--brand-600);
+    color: #fff;
+}
+
+.btn-primary:not(:disabled):not(.disabled):active,
+.btn-primary:not(:disabled):not(.disabled).active,
+.show > .btn-primary.dropdown-toggle {
+    background-color: var(--brand-700);
+    border-color: var(--brand-700);
+    color: #fff;
+}
+
+.btn-primary:disabled,
+.btn-primary.disabled {
+    background-color: var(--brand);
+    border-color: var(--brand);
+}
+
+.btn-outline-primary {
+    --bs-btn-color: var(--brand-600);
+    --bs-btn-border-color: var(--brand-300);
+    --bs-btn-hover-bg: var(--brand);
+    --bs-btn-hover-border-color: var(--brand);
+    --bs-btn-hover-color: #fff;
+    --bs-btn-active-bg: var(--brand-600);
+    --bs-btn-active-border-color: var(--brand-600);
+    --bs-btn-active-color: #fff;
+    --bs-btn-disabled-color: var(--brand-600);
+    --bs-btn-disabled-border-color: var(--brand-300);
+    --bs-btn-focus-shadow-rgb: 255, 108, 0;
+    color: var(--brand-600);
+    border-color: var(--brand-300);
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:not(:disabled):not(.disabled):active,
+.btn-outline-primary:not(:disabled):not(.disabled).active {
+    background-color: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+}
+
+.btn-link {
+    --bs-btn-color: var(--brand-600);
+    --bs-btn-hover-color: var(--brand-700);
+    color: var(--brand-600);
+}
+
+.btn:focus,
+.btn.focus,
+.btn:focus-visible {
+    box-shadow: var(--brand-ring);
+}
+
+/* ---------- Forms ---------- */
+.form-control:focus,
+.form-select:focus,
+.custom-select:focus {
+    border-color: var(--brand-300);
+    box-shadow: var(--brand-ring);
+}
+
+.form-check-input:checked,
+.custom-control-input:checked ~ .custom-control-label::before {
+    background-color: var(--brand);
+    border-color: var(--brand);
+}
+
+.form-check-input:focus {
+    border-color: var(--brand-300);
+    box-shadow: var(--brand-ring);
+}
+
+/* ---------- Text, badges, alerts, lists, navs, pagination ---------- */
+.text-primary { color: var(--brand-600) !important; }
+.bg-primary, .badge-primary { background-color: var(--brand) !important; color: #fff; }
+.border-primary { border-color: var(--brand) !important; }
+
+.alert-info,
+.alert-primary {
+    --bs-alert-color: var(--brand-800);
+    --bs-alert-bg: var(--brand-50);
+    --bs-alert-border-color: var(--brand-200);
+    background-color: var(--brand-50);
+    border-color: var(--brand-200);
+    color: var(--brand-800);
+}
+
+.list-group-item.active,
+.nav-pills .nav-link.active,
+.nav-pills .show > .nav-link {
+    background-color: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+}
+
+.nav-pills .nav-link:not(.active):hover {
+    background-color: var(--brand-50);
+    color: var(--brand-700);
+}
+
+.nav-pills .nav-link {
+    color: #374151;
+}
+
+.dropdown-item.active,
+.dropdown-item:active {
+    background-color: var(--brand);
+    color: #fff;
+}
+
+.page-link {
+    color: var(--brand-600);
+}
+
+.page-link:focus {
+    box-shadow: var(--brand-ring);
+}
+
+.page-item.active .page-link {
+    background-color: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+}
+
+.progress-bar {
+    background-color: var(--brand);
+}
+
+/* "Info" accents follow the brand too (only success/warning/danger keep their own colours). */
+.badge-info, .bg-info { background-color: var(--brand-100) !important; color: var(--brand-800) !important; }
+.text-info { color: var(--brand-700) !important; }

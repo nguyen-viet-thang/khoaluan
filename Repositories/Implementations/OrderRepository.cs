@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using PopPop.Data;
 using PopPop.Data.Entities;
 using PopPop.Data.Entities.Enums;
@@ -53,20 +53,10 @@ public sealed class OrderRepository : Repository<Order, int>, IOrderRepository
         string? search,
         CancellationToken cancellationToken = default)
     {
-        var query = DbSet.AsNoTracking().Include(order => order.User).AsQueryable();
+        var query = ApplySearch(DbSet.AsNoTracking().Include(order => order.User), search);
         if (status.HasValue)
         {
             query = query.Where(order => order.Status == status.Value);
-        }
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var term = search.Trim();
-            query = query.Where(order => order.OrderCode.Contains(term)
-                || (order.RecipientName != null && order.RecipientName.Contains(term))
-                || (order.RecipientPhone != null && order.RecipientPhone.Contains(term))
-                || (order.User != null && order.User.FullName != null && order.User.FullName.Contains(term))
-                || (order.User != null && order.User.UserName != null && order.User.UserName.Contains(term)));
         }
 
         // Work queue order: the status that needs action first comes first
@@ -117,5 +107,46 @@ public sealed class OrderRepository : Repository<Order, int>, IOrderRepository
     public Task<int> CountAllAsync(CancellationToken cancellationToken = default)
     {
         return DbSet.CountAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyDictionary<OrderStatus, int>> CountByStatusAsync(
+        string? search,
+        CancellationToken cancellationToken = default)
+    {
+        return await ApplySearch(DbSet.AsNoTracking(), search)
+            .GroupBy(order => order.Status)
+            .Select(group => new { group.Key, Count = group.Count() })
+            .ToDictionaryAsync(group => group.Key, group => group.Count, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Order>> GetUnpaidOnlineOrdersCreatedBeforeAsync(
+        DateTime createdBeforeUtc,
+        CancellationToken cancellationToken = default)
+    {
+        return await DbSet
+            .Include(order => order.OrderItems)
+                .ThenInclude(item => item.ProductVariant)
+            .Where(order => order.PaymentMethod == PaymentMethod.VnPay
+                && order.PaymentStatus != PaymentStatus.Paid
+                && order.Status == OrderStatus.Pending
+                && order.CreatedAt < createdBeforeUtc)
+            .OrderBy(order => order.CreatedAt)
+            .Take(50)
+            .ToListAsync(cancellationToken);
+    }
+
+    private static IQueryable<Order> ApplySearch(IQueryable<Order> query, string? search)
+    {
+        if (string.IsNullOrWhiteSpace(search))
+        {
+            return query;
+        }
+
+        var term = search.Trim();
+        return query.Where(order => order.OrderCode.Contains(term)
+            || (order.RecipientName != null && order.RecipientName.Contains(term))
+            || (order.RecipientPhone != null && order.RecipientPhone.Contains(term))
+            || (order.User != null && order.User.FullName != null && order.User.FullName.Contains(term))
+            || (order.User != null && order.User.UserName != null && order.User.UserName.Contains(term)));
     }
 }

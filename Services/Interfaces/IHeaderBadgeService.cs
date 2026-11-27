@@ -9,4 +9,7 @@ public interface IHeaderBadgeService
 
     /// <summary>Unread notifications, the latest ones and the number of claims waiting for review (back office).</summary>
     Task<StaffBadges> GetStaffBadgesAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Active categories and brands that have products on sale (cached for a few minutes).</summary>
+    Task<HeaderMenu> GetMenuAsync(CancellationToken cancellationToken = default);
 }

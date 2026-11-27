@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PopPop.Services.Interfaces;
 
@@ -10,10 +10,12 @@ public class ProductsController : Controller
     private const int MaxSpecIds = 30;
     private const int LiveResultCount = 6;
     private readonly IProductService _productService;
+    private readonly IRacketAdvisorService _advisor;
 
-    public ProductsController(IProductService productService)
+    public ProductsController(IProductService productService, IRacketAdvisorService advisor)
     {
         _productService = productService;
+        _advisor = advisor;
     }
 
     [HttpGet]
@@ -45,7 +47,22 @@ public class ProductsController : Controller
     public async Task<IActionResult> Details(int id, CancellationToken cancellationToken)
     {
         var product = await _productService.GetDetailsAsync(id, cancellationToken);
-        return product is null ? NotFound() : View(product);
+        if (product is null)
+        {
+            return NotFound();
+        }
+
+        // Racket pages: how well this racket fits the player's saved advisor profile (or an invitation to create one).
+        if (AdvisorController.ReadSavedProfile(Request) is { } profile)
+        {
+            ViewData["RacketFit"] = await _advisor.EvaluateAsync(profile, id, cancellationToken);
+        }
+        else
+        {
+            ViewData["IsRacket"] = await _advisor.IsRacketAsync(id, cancellationToken);
+        }
+
+        return View(product);
     }
 
     /// <summary>Live results for the header search panel.</summary>

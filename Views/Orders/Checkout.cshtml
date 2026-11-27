@@ -1,4 +1,4 @@
-@model PopPop.Models.CheckoutViewModel
+﻿@model PopPop.Models.CheckoutViewModel
 @using PopPop.Data.Entities.Enums
 
 @{
@@ -28,22 +28,19 @@
                         <h3>Thông tin nhận hàng</h3>
                         <div asp-validation-summary="ModelOnly" class="col-md-12 text-danger"></div>
                         <div class="row contact_form">
-                            <div class="col-md-12 form-group p_star">
+                            <div class="col-md-12 form-group">
                                 <label asp-for="RecipientName" class="sr-only"></label>
-                                <input asp-for="RecipientName" class="form-control" />
-                                <span class="placeholder" data-placeholder="Tên người nhận"></span>
+                                <input asp-for="RecipientName" class="form-control" placeholder="Tên người nhận *" autocomplete="name" />
                                 <span asp-validation-for="RecipientName" class="text-danger"></span>
                             </div>
-                            <div class="col-md-12 form-group p_star">
+                            <div class="col-md-12 form-group">
                                 <label asp-for="RecipientPhone" class="sr-only"></label>
-                                <input asp-for="RecipientPhone" class="form-control" />
-                                <span class="placeholder" data-placeholder="Số điện thoại"></span>
+                                <input asp-for="RecipientPhone" class="form-control" placeholder="Số điện thoại *" inputmode="tel" autocomplete="tel" />
                                 <span asp-validation-for="RecipientPhone" class="text-danger"></span>
                             </div>
-                            <div class="col-md-12 form-group p_star">
+                            <div class="col-md-12 form-group">
                                 <label asp-for="ShippingAddress" class="sr-only"></label>
-                                <input asp-for="ShippingAddress" class="form-control" />
-                                <span class="placeholder" data-placeholder="Địa chỉ giao hàng"></span>
+                                <input asp-for="ShippingAddress" class="form-control" placeholder="Địa chỉ giao hàng (số nhà, đường, phường/xã, quận/huyện, tỉnh/thành) *" autocomplete="street-address" />
                                 <span asp-validation-for="ShippingAddress" class="text-danger"></span>
                             </div>
                             <div class="col-md-12 form-group">
@@ -91,22 +88,34 @@
                                     <p class="text-muted small mb-2">Mua thêm <strong>@Model.AmountToFreeShipping.ToString("N0") ₫</strong> để được miễn phí giao hàng (đơn từ @Model.FreeShippingThreshold.ToString("N0") ₫).</p>
                                 }
 
-                                <div class="payment_item">
-                                    <label class="d-block">
-                                        <input asp-for="PaymentMethod" type="radio" value="@((int)PaymentMethod.CashOnDelivery)" />
-                                        <strong>Thanh toán khi nhận hàng (COD)</strong>
+                                <fieldset class="checkout-pay" aria-label="Phương thức thanh toán">
+                                    <label class="checkout-pay__option">
+                                        <input type="radio" name="PaymentMethod" value="@PaymentMethod.CashOnDelivery"
+                                               checked="@(Model.PaymentMethod != PaymentMethod.VnPay || !Model.VnPayAvailable)" />
+                                        <span class="checkout-pay__body">
+                                            <strong><i class="fa fa-money" aria-hidden="true"></i> Thanh toán khi nhận hàng (COD)</strong>
+                                            <small>Trả tiền mặt cho nhân viên giao hàng sau khi kiểm tra đủ sản phẩm.</small>
+                                        </span>
                                     </label>
-                                    <p>Bạn thanh toán bằng tiền mặt cho nhân viên giao hàng khi nhận và kiểm tra đủ sản phẩm.</p>
-                                </div>
-                                <div class="payment_item">
-                                    <label class="d-block">
-                                        <input asp-for="PaymentMethod" type="radio" value="@((int)PaymentMethod.VnPay)" />
-                                        <strong>Thanh toán trực tuyến qua VNPAY</strong>
+                                    <label class="checkout-pay__option @(Model.VnPayAvailable ? string.Empty : "is-disabled")">
+                                        <input type="radio" name="PaymentMethod" value="@PaymentMethod.VnPay"
+                                               checked="@(Model.PaymentMethod == PaymentMethod.VnPay && Model.VnPayAvailable)" disabled="@(!Model.VnPayAvailable)" />
+                                        <span class="checkout-pay__body">
+                                            <strong><i class="fa fa-credit-card" aria-hidden="true"></i> Thanh toán trực tuyến qua VNPAY</strong>
+                                            @if (Model.VnPayAvailable)
+                                            {
+                                                <small>Thẻ ATM, Internet Banking, thẻ quốc tế hoặc QR. Đơn được giữ hàng trong @Model.VnPayTimeoutMinutes phút để bạn thanh toán.</small>
+                                            }
+                                            else
+                                            {
+                                                <small>Tạm thời chưa khả dụng.</small>
+                                            }
+                                        </span>
                                     </label>
-                                    <p>Chuyển đến cổng VNPAY an toàn để thanh toán bằng thẻ hoặc ngân hàng.</p>
-                                </div>
+                                </fieldset>
                                 <span asp-validation-for="PaymentMethod" class="text-danger"></span>
-                                <button type="submit" class="primary-btn mt-3 w-100">Đặt hàng / Thanh toán</button>
+                                <button type="submit" class="primary-btn mt-3 w-100" id="checkout-submit"
+                                        data-cod-text="Đặt hàng" data-vnpay-text="Đặt hàng &amp; thanh toán VNPAY">Đặt hàng</button>
                             }
                             <a asp-controller="Cart" asp-action="Index" class="d-block mt-3">Quay lại giỏ hàng</a>
                         </div>
@@ -119,4 +128,23 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            var form = document.querySelector('.checkout_area form');
+            var button = document.getElementById('checkout-submit');
+            if (!form || !button) return;
+            function syncLabel() {
+                var vnpay = form.querySelector('input[name="PaymentMethod"][value="VnPay"]:checked');
+                button.textContent = vnpay ? button.dataset.vnpayText : button.dataset.codText;
+            }
+            form.addEventListener('change', syncLabel);
+            syncLabel();
+            // One click = one order: block double submits while the request is in flight.
+            form.addEventListener('submit', function () {
+                if (window.jQuery && jQuery(form).valid && !jQuery(form).valid()) return;
+                button.disabled = true;
+                button.textContent = 'Đang xử lý...';
+            });
+        })();
+    </script>
 }

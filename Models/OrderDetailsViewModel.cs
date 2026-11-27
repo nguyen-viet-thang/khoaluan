@@ -1,4 +1,4 @@
-using PopPop.Data.Entities.Enums;
+﻿using PopPop.Data.Entities.Enums;
 
 namespace PopPop.Models;
 
@@ -20,6 +20,10 @@ public sealed class OrderDetailsViewModel
     public IReadOnlyList<OrderLineViewModel> Items { get; init; } = [];
     public decimal ShippingFee { get; init; }
     public decimal TotalAmount { get; init; }
+
+    /// <summary>VNPAY order still waiting for payment: last moment the customer can pay (UTC), otherwise null.</summary>
+    public DateTime? PaymentDeadline { get; init; }
+    public bool AwaitingOnlinePayment => PaymentDeadline.HasValue;
 
     /// <summary>Warranty / receipt-defect claims filed for this order (set by the controller).</summary>
     public IReadOnlyList<ClaimRowViewModel> Claims { get; set; } = [];

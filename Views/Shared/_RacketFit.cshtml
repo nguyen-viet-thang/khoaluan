@@ -1,0 +1,51 @@
+@model PopPop.Models.RacketFitPanel
+@using PopPop.Models
+@* Racket product page: fit for the customer's saved advisor profile, or an invitation to take the 4-question advisor. *@
+@if (!Model.IsRacket)
+{
+    return;
+}
+
+@if (Model.Fit is { } fit)
+{
+    <section class="racket-fit" aria-label="Mức độ phù hợp với bạn">
+        <div class="racket-fit__head">
+            <div class="advisor-score advisor-score--sm" style="--score:@fit.MatchPercent" role="img" aria-label="Phù hợp @fit.MatchPercent%">
+                <strong>@fit.MatchPercent%</strong>
+            </div>
+            <div>
+                <strong class="racket-fit__title">
+                    @(fit.MatchPercent >= 80 ? "Rất hợp với bạn" : fit.MatchPercent >= 60 ? "Khá hợp với bạn" : "Chưa thật hợp với bạn")
+                </strong>
+                <span>Theo hồ sơ chơi cầu của bạn@(fit.VariantLabel is null ? "" : $" · nên chọn bản {fit.VariantLabel}")</span>
+            </div>
+        </div>
+        <ul class="advisor-reasons">
+            @foreach (var reason in fit.Reasons)
+            {
+                <li class="is-@reason.Tone.ToString().ToLowerInvariant()">
+                    <i class="fa @(reason.Tone switch { FitTone.Good => "fa-check-circle", FitTone.Warning => "fa-exclamation-circle", _ => "fa-dot-circle-o" })" aria-hidden="true"></i>
+                    @reason.Text
+                </li>
+            }
+        </ul>
+        <div class="racket-fit__links">
+            @if (fit.MatchPercent < 80)
+            {
+                <a asp-controller="Advisor" asp-action="Index"><i class="fa fa-magic" aria-hidden="true"></i> Xem vợt hợp với bạn hơn</a>
+            }
+            <a asp-controller="Advisor" asp-action="Reset">Đổi hồ sơ</a>
+        </div>
+    </section>
+}
+else
+{
+    <a class="racket-fit racket-fit--cta" asp-controller="Advisor" asp-action="Index">
+        <i class="fa fa-magic" aria-hidden="true"></i>
+        <span>
+            <strong>Vợt này có hợp với bạn không?</strong>
+            Trả lời 4 câu hỏi (khoảng 30 giây) để biết mức độ phù hợp và nên chọn 3U hay 4U.
+        </span>
+        <span class="lnr lnr-arrow-right" aria-hidden="true"></span>
+    </a>
+}

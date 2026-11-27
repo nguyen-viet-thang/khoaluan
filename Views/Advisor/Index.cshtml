@@ -1,0 +1,158 @@
+@model PopPop.Models.AdvisorPageViewModel
+@{
+    ViewData["Title"] = "Tư vấn chọn vợt";
+    var profile = Model.Profile;
+
+    (string Name, string Value, string Label, string Note, string Icon)[] levels =
+    [
+        ("Level", "Beginner", "Mới chơi", "Dưới 6 tháng, đang học kỹ thuật", "fa-leaf"),
+        ("Level", "Intermediate", "Phong trào", "Chơi đều đặn hằng tuần", "fa-user"),
+        ("Level", "Advanced", "Khá / thi đấu", "Kỹ thuật vững, đánh giải", "fa-trophy")
+    ];
+    (string Name, string Value, string Label, string Note, string Icon)[] styles =
+    [
+        ("Style", "Attack", "Tấn công", "Thích đập cầu mạnh", "fa-bolt"),
+        ("Style", "Defense", "Phòng thủ", "Đỡ cầu, phản tạt nhanh", "fa-shield"),
+        ("Style", "AllRound", "Toàn diện", "Công thủ đều tay", "fa-balance-scale"),
+        ("Style", "Net", "Đánh đôi trên lưới", "Hay chặn, gẩy cầu sát lưới", "fa-th")
+    ];
+    (string Name, string Value, string Label, string Note, string Icon)[] wrists =
+    [
+        ("Wrist", "Normal", "Bình thường", "Ít tập thể lực tay", "fa-hand-paper-o"),
+        ("Wrist", "Strong", "Khỏe", "Cổ tay chắc, vung nhanh", "fa-hand-rock-o")
+    ];
+    (string Name, string Value, string Label, string Note, string Icon)[] budgets =
+    [
+        ("Budget", "Under1M", "Dưới 1 triệu", "Vợt tập luyện", "fa-money"),
+        ("Budget", "To2M", "1 – 2 triệu", "Tầm trung", "fa-money"),
+        ("Budget", "To3_5M", "2 – 3,5 triệu", "Cận cao cấp", "fa-money"),
+        ("Budget", "Any", "Không giới hạn", "Chọn vợt tốt nhất", "fa-diamond")
+    ];
+
+    bool IsChecked(string name, string value) => name switch
+    {
+        "Level" => profile.Level?.ToString() == value,
+        "Style" => profile.Style?.ToString() == value,
+        "Wrist" => profile.Wrist?.ToString() == value,
+        "Budget" => profile.Budget?.ToString() == value,
+        _ => false
+    };
+}
+
+<section class="advisor-hero">
+    <div class="container">
+        <span class="advisor-hero__eyebrow"><i class="fa fa-magic" aria-hidden="true"></i> Tư vấn thông minh</span>
+        <h1>Chọn vợt hợp với chính bạn</h1>
+        <p>Không cần hiểu 3U, 4U, nặng đầu hay thân cứng. Trả lời 4 câu hỏi, hệ thống quy đổi lối chơi của bạn thành thông số,
+           chấm điểm từng cây vợt còn hàng và giải thích rõ vì sao nên chọn.</p>
+    </div>
+</section>
+
+<section class="advisor section_gap_bottom">
+    <div class="container">
+        <div class="advisor__grid">
+            <form class="advisor-quiz" id="advisor-form" method="get" asp-action="Index"
+                  data-results-url="@Url.Action("Results", "Advisor")">
+                @{
+                    var groups = new[]
+                    {
+                        (Title: "1. Trình độ của bạn", Items: levels),
+                        (Title: "2. Lối chơi yêu thích", Items: styles),
+                        (Title: "3. Lực cổ tay", Items: wrists),
+                        (Title: "4. Ngân sách cho cây vợt", Items: budgets)
+                    };
+                }
+                @foreach (var group in groups)
+                {
+                    <fieldset class="advisor-quiz__group">
+                        <legend>@group.Title</legend>
+                        <div class="advisor-quiz__options">
+                            @foreach (var option in group.Items)
+                            {
+                                <label class="advisor-option">
+                                    <input type="radio" name="@option.Name" value="@option.Value" required checked="@IsChecked(option.Name, option.Value)" />
+                                    <span class="advisor-option__body">
+                                        <i class="fa @option.Icon" aria-hidden="true"></i>
+                                        <strong>@option.Label</strong>
+                                        <small>@option.Note</small>
+                                    </span>
+                                </label>
+                            }
+                        </div>
+                    </fieldset>
+                }
+                <fieldset class="advisor-quiz__group">
+                    <legend>5. Thương hiệu yêu thích <small>(không bắt buộc)</small></legend>
+                    <div class="advisor-quiz__chips">
+                        <label class="advisor-chip"><input type="radio" name="BrandId" value="" checked="@(profile.BrandId is null)" /><span>Bất kỳ</span></label>
+                        @foreach (var brand in Model.Brands)
+                        {
+                            <label class="advisor-chip"><input type="radio" name="BrandId" value="@brand.Id" checked="@(profile.BrandId == brand.Id)" /><span>@brand.Name</span></label>
+                        }
+                    </div>
+                </fieldset>
+                <div class="advisor-quiz__actions">
+                    <button type="submit" class="primary-btn" id="advisor-submit">Xem gợi ý</button>
+                    @if (profile.IsComplete)
+                    {
+                        <a asp-action="Reset" class="advisor-quiz__reset">Làm lại từ đầu</a>
+                    }
+                </div>
+            </form>
+
+            <div class="advisor-results" id="advisor-results" aria-live="polite">
+                <partial name="_AdvisorResults" model="Model.Result" />
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        (function () {
+            const form = document.getElementById('advisor-form');
+            const results = document.getElementById('advisor-results');
+            if (!form || !results) return;
+            const required = ['Level', 'Style', 'Wrist', 'Budget'];
+            let requestId = 0;
+
+            const complete = () => required.every(name => form.querySelector(`input[name="${name}"]:checked`));
+            const query = () => {
+                const params = new URLSearchParams();
+                for (const [key, value] of new FormData(form)) {
+                    if (value !== '') params.append(key, value);
+                }
+                return params.toString();
+            };
+
+            // Answers update the recommendation instantly once all 4 questions are answered.
+            async function refresh() {
+                if (!complete()) return;
+                const params = query();
+                const current = ++requestId;
+                results.classList.add('is-loading');
+                try {
+                    const response = await fetch(`${form.dataset.resultsUrl}?${params}`, { headers: { 'X-Requested-With': 'fetch' } });
+                    if (!response.ok) throw new Error(response.statusText);
+                    const html = await response.text();
+                    if (current !== requestId) return;
+                    results.innerHTML = html;
+                    history.replaceState(null, '', `${form.getAttribute('action')}?${params}`);
+                    if (window.innerWidth < 992) results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } catch {
+                    form.submit();
+                } finally {
+                    if (current === requestId) results.classList.remove('is-loading');
+                }
+            }
+
+            form.addEventListener('change', refresh);
+            form.addEventListener('submit', event => {
+                if (complete()) {
+                    event.preventDefault();
+                    refresh();
+                }
+            });
+        })();
+    </script>
+}
