@@ -15,4 +15,9 @@
 	<!--gmaps Js-->
 	@* <script src="https://maps.googleapis.com/maps/api/js?key=[YOUR_API_KEY]"></script> *@
 	@* <script src="~/js/gmaps.min.js"></script> *@
+@if (User.Identity?.IsAuthenticated == true)
+{
+	@* SignalR client: lets notifications.js receive real-time pushes from /hubs/notifications (signed-in users only). *@
+	<script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@10.0.0/dist/browser/signalr.min.js" crossorigin="anonymous"></script>
+}
 <script src="~/js/notifications.js" asp-append-version="true"></script>
